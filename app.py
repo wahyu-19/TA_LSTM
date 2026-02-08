@@ -545,42 +545,48 @@ else:
     
             st.subheader("Validation Loss Comparison")
     
-            fig, ax = plt.subplots()
+            col1, col2, col3 = st.columns(3)
     
-            ax.plot(history_base.history['val_loss'], label="Baseline")
-            ax.plot(history_pso.history['val_loss'], label="PSO")
-            ax.plot(history_ga.history['val_loss'], label="GA")
+            # ===== BASELINE =====
+            with col1:
+                fig1, ax1 = plt.subplots(figsize=(4,3))
+                ax1.plot(history_base.history['val_loss'])
+                ax1.set_title("Baseline")
+                ax1.set_xlabel("Epoch")
+                ax1.set_ylabel("Loss")
+                st.pyplot(fig1)
     
-            ax.set_title("Validation Loss")
-            ax.set_xlabel("Epoch")
-            ax.set_ylabel("Loss")
-            ax.legend()
+            # ===== PSO =====
+            with col2:
+                fig2, ax2 = plt.subplots(figsize=(4,3))
+                ax2.plot(history_pso.history['val_loss'])
+                ax2.set_title("PSO")
+                ax2.set_xlabel("Epoch")
+                st.pyplot(fig2)
     
-            st.pyplot(fig)
+            # ===== GA =====
+            with col3:
+                fig3, ax3 = plt.subplots(figsize=(4,3))
+                ax3.plot(history_ga.history['val_loss'])
+                ax3.set_title("GA")
+                ax3.set_xlabel("Epoch")
+                st.pyplot(fig3)
 
-    # =========================================================
-    # SECTION 3 : HASIL FORECAST
-    # =========================================================
-    elif section == "Hasil Forecast":
+            # ===============================
+            # Grafik Train vs Actual (kecil)
+            # ===============================
+            st.subheader("Train vs Actual")
     
-        if not st.session_state.trained:
-            st.warning("Klik 'Run Training Model' terlebih dahulu.")
-        else:
-            y_true = st.session_state.y_true_base
+            fig4, ax4 = plt.subplots(figsize=(6,3))
+            ax4.plot(st.session_state.y_true_base, label="Actual")
+            ax4.plot(st.session_state.y_pred_base, label="Predicted")
+            ax4.legend()
+            st.pyplot(fig4)
     
-            st.subheader("Perbandingan Forecast")
-    
-            fig, ax = plt.subplots()
-    
-            ax.plot(y_true, label="Actual")
-            ax.plot(st.session_state.y_pred_base, label="Baseline")
-            ax.plot(st.session_state.y_pred_pso, label="PSO")
-            ax.plot(st.session_state.y_pred_ga, label="GA")
-    
-            ax.legend()
-            st.pyplot(fig)
-    
-            st.subheader("Perbandingan Error")
+            # ===============================
+            # Tabel Error (MAPE saja)
+            # ===============================
+            st.subheader("MAPE Comparison")
     
             results = pd.DataFrame({
                 "Model": ["Baseline", "PSO", "GA"],
@@ -588,16 +594,61 @@ else:
                     st.session_state.base_mape,
                     st.session_state.pso_mape,
                     st.session_state.ga_mape
-                ],
-                "SMAPE": [
-                    st.session_state.base_smape,
-                    st.session_state.pso_smape,
-                    st.session_state.ga_smape
                 ]
             })
     
             st.dataframe(results)
+
+
+    # =========================================================
+    # SECTION 3 : HASIL FORECAST
+    # =========================================================
+    elif section == "Hasil Forecast":
+
+        if not st.session_state.trained:
+            st.warning("Klik 'Run Training Model' terlebih dahulu.")
+        else:
     
+            st.subheader("Forecast Future")
+    
+            future_days = st.slider("Forecast horizon (hari)", 5, 30, 7)
+    
+            last_window = X_test[-1].copy()
+            future_preds = []
+    
+            model = st.session_state.model_base
+    
+            for _ in range(future_days):
+                pred = model.predict(last_window.reshape(1, last_window.shape[0], last_window.shape[1]), verbose=0)
+                future_preds.append(pred[0,0])
+    
+                last_window = np.roll(last_window, -1)
+                last_window[-1] = pred
+    
+            future_preds = scaler_y.inverse_transform(np.array(future_preds).reshape(-1,1)).flatten()
+    
+            # ===============================
+            # Grafik forecast
+            # ===============================
+            fig, ax = plt.subplots(figsize=(8,3))
+            ax.plot(future_preds, label="Forecast")
+            ax.set_title("Future Forecast")
+            ax.legend()
+            st.pyplot(fig)
+    
+            # ===============================
+            # tabel forecast
+            # ===============================
+            future_dates = pd.date_range(start=df.index[-1] + timedelta(days=1), periods=future_days)
+    
+            forecast_df = pd.DataFrame({
+                "Date": future_dates,
+                "Forecast": future_preds
+            })
+    
+            st.dataframe(forecast_df)
+
+
 
 
 
