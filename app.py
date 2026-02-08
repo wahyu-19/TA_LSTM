@@ -44,12 +44,12 @@ today = datetime.date.today()
 
 start_date = st.sidebar.date_input(
     "Start Date",
-    datetime.date(2019,1,1)
+    datetime.date(2019,7,1)
 )
 
 end_date = st.sidebar.date_input(
     "End Date",
-    today
+    datetime.date(2025,7,1)
 )
 
 section = st.sidebar.radio(
@@ -145,7 +145,7 @@ else:
     BASE_UNITS = 16
     BASE_DROPOUT = 0.5
     BASE_BATCH = 64
-    BASE_EPOCHS = 50
+    BASE_EPOCHS = 100
     BASE_LR = 0.001
 
     def build_lstm_model(input_shape, units=16, dropout=0.01, lr=1e-3):
@@ -206,8 +206,8 @@ else:
     @st.cache_resource
     def train_pso():
 
-        PSO_N_PARTICLES = 5
-        PSO_ITERS = 5
+        PSO_N_PARTICLES = 10
+        PSO_ITERS = 10
         PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
         PSO_BOUNDS = ([16, 0.0001, 8, 0.1], [160, 0.001, 256, 1])
     
@@ -242,7 +242,7 @@ else:
                             lr=lr
                         )
     
-                        model.fit(X_tr, y_tr, epochs=20, batch_size=batch, verbose=0)
+                        model.fit(X_tr, y_tr, epochs=50, batch_size=batch, verbose=0)
     
                         yv_pred = model.predict(X_va, verbose=0)
                         yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
@@ -321,7 +321,7 @@ else:
     
         history_final = model_final.fit(
             X_train, y_train,
-            epochs=50,
+            epochs=100,
             batch_size=best_batch,
             validation_split=0.2,
             verbose=0
@@ -339,8 +339,8 @@ else:
 
     @st.cache_resource
     def train_ga():
-        POP_SIZE = 5
-        N_GENERATIONS = 5
+        POP_SIZE = 10
+        N_GENERATIONS = 10
         MUTATION_RATE = 0.1
         GA_LB = [16, 8, 0.1, 0.0001]
         GA_UB = [160, 256, 1, 0.001]
@@ -359,7 +359,7 @@ else:
                 batch = int(np.round(indiv['batch_size']))
                 dropout = float(indiv['dropout'])
                 lr = float(indiv['lr'])
-                epochs_fixed = 20
+                epochs_fixed = 50
                 set_seed(42)
                 tf.keras.backend.clear_session()
                 model = build_lstm_model(
@@ -442,7 +442,7 @@ else:
 
         history_ga = final_model_ga.fit(
             X_train, y_train,
-            epochs=50,
+            epochs=100,
             batch_size=best_batch_ga,
             validation_split=0.2,
             verbose=0
@@ -544,7 +544,7 @@ else:
             fig, axes = plt.subplots(1, 3, figsize=(15,4))
             
             # BASELINE LSTM
-            axes[0].plot(history_base.history['loss'])
+            axes[0].plot(history_base.history['loss']+1)
             axes[0].plot(history_base.history['val_loss'])
             axes[0].set_title('Baseline LSTM')
             axes[0].set_xlabel('Epoch')
@@ -552,14 +552,14 @@ else:
             axes[0].legend(['Training Loss','Validation Loss'])
             
             # GA-LSTM
-            axes[1].plot(history_ga.history['loss'])
+            axes[1].plot(history_ga.history['loss']+1)
             axes[1].plot(history_ga.history['val_loss'])
             axes[1].set_title('GA-LSTM')
             axes[1].set_xlabel('Epoch')
             axes[1].legend(['Training Loss','Validation Loss'])
             
             # PSO-LSTM
-            axes[2].plot(history_pso.history['loss'])
+            axes[2].plot(history_pso.history['loss']+1)
             axes[2].plot(history_pso.history['val_loss'])
             axes[2].set_title('PSO-LSTM')
             axes[2].set_xlabel('Epoch')
@@ -647,6 +647,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
