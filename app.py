@@ -457,12 +457,7 @@ else:
 
         return final_model_ga, history_ga, ga_mape, ga_smape, y_pred_ga, y_true_ga, gbest_history_ga
 
-    # Train models
-    model_base, history_base, base_mape, base_smape, y_pred_base, y_true_base = train_baseline()
-    model_pso, history_pso, pso_mape, pso_smape, y_pred_pso, y_true_pso, pso_gbest = train_pso()
-    model_ga, history_ga, ga_mape, ga_smape, y_pred_ga, y_true_ga, ga_gbest = train_ga()
-
-
+   
     # =========================================================
     # SESSION STATE (agar tidak retrain saat pindah tab)
     # =========================================================
@@ -548,10 +543,10 @@ else:
             # =====================================================
             fig, axes = plt.subplots(1, 3, figsize=(15,4))
             
-            # LSTM
-            axes[0].plot(history_lstm.history['loss'])
-            axes[0].plot(history_lstm.history['val_loss'])
-            axes[0].set_title('LSTM')
+            # BASELINE LSTM
+            axes[0].plot(history_base.history['loss'])
+            axes[0].plot(history_base.history['val_loss'])
+            axes[0].set_title('Baseline LSTM')
             axes[0].set_xlabel('Epoch')
             axes[0].set_ylabel('Loss')
             axes[0].legend(['Training Loss','Validation Loss'])
@@ -652,6 +647,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
