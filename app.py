@@ -46,45 +46,41 @@ section = st.sidebar.radio(
 # =============================
 # LOAD DATA
 # =============================
-@st.cache_data
+@st.cache_data(ttl=3600)
 def load_data(ticker, start, end):
 
     df = yf.download(
         ticker,
-        start=str(start),
-        end=str(end),
-        auto_adjust=False,
-        progress=False
+        start=start.strftime("%Y-%m-%d"),
+        end=end.strftime("%Y-%m-%d"),
+        progress=False,
+        auto_adjust=False
     )
 
     if df.empty:
         return pd.DataFrame()
 
-    # pastikan hanya Close
+    # Jika MultiIndex kolom
     if isinstance(df.columns, pd.MultiIndex):
-        df = df['Close'].to_frame()
+        df.columns = df.columns.get_level_values(0)
 
-    df = df[['Close']].dropna()
+    # Ambil hanya Close
+    df = df[['Close']].copy()
+
+    df.dropna(inplace=True)
 
     return df
-
-data = load_data(ticker, start_date, end_date)
-
-if data.empty:
-    st.error(f"Data {ticker} tidak ditemukan. Coba ticker lain.")
-    st.stop()
 
 # =============================
 # SECTION 1 : INFORMASI DATA
 # =============================
 if section == "Informasi Data":
 
-    st.subheader(f"Pergerakan Harga Saham {ticker}")
-    st.line_chart(data)
+st.subheader(f"Pergerakan Harga Saham {ticker}")
+st.line_chart(data['Close'])
 
-    st.subheader("Statistik Deskriptif Harga Close")
-    desc = data['Close'].describe()
-    st.table(desc)
+st.subheader("Statistik Deskriptif (Close)")
+st.write(data['Close'].describe())
 
 # =============================
 # SECTION 2 : IN DEPTH ANALYSIS
@@ -132,6 +128,7 @@ elif section == "Hasil Forecast":
     })
 
     st.line_chart(forecast_df)
+
 
 
 
