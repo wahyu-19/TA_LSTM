@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import datetime
 import matplotlib.pyplot as plt
 
 st.set_page_config(layout="wide")
@@ -9,19 +10,20 @@ st.set_page_config(layout="wide")
 # =============================
 # SIDEBAR INPUT
 # =============================
-st.sidebar.title("Stock Settings")
+today = datetime.date.today()
 
-ticker = st.sidebar.text_input(
-    "Masukkan ticker saham (contoh: BBCA.JK)",
-    "SIDO.JK"
+start_date = st.sidebar.date_input(
+    "Start Date",
+    value=datetime.date(2019, 1, 1),   # default saja, tetap bisa diubah
+    min_value=datetime.date(2000, 1, 1),
+    max_value=today
 )
 
-start_date = st.sidebar.date_input("Start Date")
-end_date = st.sidebar.date_input("End Date")
-
-section = st.sidebar.radio(
-    "Select Section",
-    ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
+end_date = st.sidebar.date_input(
+    "End Date",
+    value=today,
+    min_value=datetime.date(2000, 1, 1),
+    max_value=today
 )
 
 # =============================
@@ -29,23 +31,30 @@ section = st.sidebar.radio(
 # =============================
 @st.cache_data
 def load_data(ticker, start, end):
-    try:
-        df = yf.download(ticker, start=start, end=end, progress=False)
 
-        # pastikan hanya kolom Close
-        if isinstance(df.columns, pd.MultiIndex):
-            df = df['Close'].to_frame()
+    df = yf.download(
+        ticker,
+        start=str(start),
+        end=str(end),
+        auto_adjust=False,
+        progress=False
+    )
 
-        df = df[['Close']].dropna()
-        return df
-
-    except:
+    if df.empty:
         return pd.DataFrame()
+
+    # pastikan hanya Close
+    if isinstance(df.columns, pd.MultiIndex):
+        df = df['Close'].to_frame()
+
+    df = df[['Close']].dropna()
+
+    return df
 
 data = load_data(ticker, start_date, end_date)
 
 if data.empty:
-    st.warning("Data tidak ditemukan. Periksa ticker atau rentang tanggal.")
+    st.error(f"Data {ticker} tidak ditemukan. Coba ticker lain.")
     st.stop()
 
 # =============================
@@ -106,5 +115,6 @@ elif section == "Hasil Forecast":
     })
 
     st.line_chart(forecast_df)
+
 
 
