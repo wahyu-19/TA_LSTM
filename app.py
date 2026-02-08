@@ -60,7 +60,7 @@ section = st.sidebar.radio(
 # =============================
 # LOAD DATA
 # =============================
-@st.cache_data(ttl=3600)
+@st.cache_resource(ttl=3600)
 def load_data(ticker, start, end):
     df = yf.download(
         ticker,
@@ -176,7 +176,7 @@ else:
     # =============================
     # TRAIN MODELS (cached)
     # =============================
-    @st.cache_data
+    @st.cache_resource
     def train_baseline():
         set_seed(42)
         model_base = build_lstm_model(
@@ -203,7 +203,7 @@ else:
 
         return model_base, history_base, base_mape, base_smape, y_pred_base, y_true_base
 
-    @st.cache_data
+    @st.cache_resource
     def train_pso():
 
         PSO_N_PARTICLES = 5
@@ -337,7 +337,7 @@ else:
         return model_final, history_final, pso_mape, pso_smape, y_pred_final, y_true_final, history_gbest_cost
 
 
-    @st.cache_data
+    @st.cache_resource
     def train_ga():
         POP_SIZE = 5
         N_GENERATIONS = 5
@@ -598,5 +598,6 @@ else:
     
             st.dataframe(results)
     
+
 
 
