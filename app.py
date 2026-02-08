@@ -10,21 +10,38 @@ st.set_page_config(layout="wide")
 # =============================
 # SIDEBAR INPUT
 # =============================
+import datetime
+
+st.sidebar.title("Stock Settings")
+
+ticker_input = st.sidebar.text_input(
+    "Masukkan ticker saham (contoh: BBCA)",
+    "SIDO"
+)
+
+# otomatis tambah .JK jika belum ada
+if ".JK" not in ticker_input:
+    ticker = ticker_input.upper() + ".JK"
+else:
+    ticker = ticker_input.upper()
+
 today = datetime.date.today()
 
 start_date = st.sidebar.date_input(
     "Start Date",
-    value=datetime.date(2019, 1, 1),   # default saja, tetap bisa diubah
-    min_value=datetime.date(2000, 1, 1),
-    max_value=today
+    datetime.date(2019,1,1)
 )
 
 end_date = st.sidebar.date_input(
     "End Date",
-    value=today,
-    min_value=datetime.date(2000, 1, 1),
-    max_value=today
+    today
 )
+
+section = st.sidebar.radio(
+    "Select Section",
+    ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
+)
+
 
 # =============================
 # LOAD DATA
@@ -115,6 +132,7 @@ elif section == "Hasil Forecast":
     })
 
     st.line_chart(forecast_df)
+
 
 
 
