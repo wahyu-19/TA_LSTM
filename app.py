@@ -145,7 +145,7 @@ else:
     BASE_UNITS = 16
     BASE_DROPOUT = 0.5
     BASE_BATCH = 64
-    BASE_EPOCHS = 100
+    BASE_EPOCHS = 50
     BASE_LR = 0.001
 
     def build_lstm_model(input_shape, units=16, dropout=0.01, lr=1e-3):
@@ -242,7 +242,7 @@ else:
                             lr=lr
                         )
     
-                        model.fit(X_tr, y_tr, epochs=50, batch_size=batch, verbose=0)
+                        model.fit(X_tr, y_tr, epochs=20, batch_size=batch, verbose=0)
     
                         yv_pred = model.predict(X_va, verbose=0)
                         yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
@@ -321,7 +321,7 @@ else:
     
         history_final = model_final.fit(
             X_train, y_train,
-            epochs=100,
+            epochs=50,
             batch_size=best_batch,
             validation_split=0.2,
             verbose=0
@@ -359,7 +359,7 @@ else:
                 batch = int(np.round(indiv['batch_size']))
                 dropout = float(indiv['dropout'])
                 lr = float(indiv['lr'])
-                epochs_fixed = 50
+                epochs_fixed = 20
                 set_seed(42)
                 tf.keras.backend.clear_session()
                 model = build_lstm_model(
@@ -442,7 +442,7 @@ else:
 
         history_ga = final_model_ga.fit(
             X_train, y_train,
-            epochs=100,
+            epochs=50,
             batch_size=best_batch_ga,
             validation_split=0.2,
             verbose=0
@@ -647,6 +647,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
