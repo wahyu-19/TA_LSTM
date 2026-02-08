@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -130,4 +129,4 @@ else:
         })
 
         st.line_chart(forecast_df)
-```
+
