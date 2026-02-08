@@ -29,13 +29,18 @@ section = st.sidebar.radio(
 # =============================
 @st.cache_data
 def load_data(ticker, start, end):
-    df = yf.download(ticker, start=start, end=end)
-    df.dropna(inplace=True)
-    return df
+    try:
+        df = yf.download(ticker, start=start, end=end, progress=False)
+        df.dropna(inplace=True)
+        return df
+    except:
+        return pd.DataFrame()
 
 data = load_data(ticker, start_date, end_date)
 
-st.title("Stock Forecasting LSTM - Baseline vs GA vs PSO")
+if data.empty:
+    st.warning("Data tidak ditemukan. Periksa ticker atau rentang tanggal.")
+    st.stop()
 
 # =============================
 # SECTION 1 : INFORMASI DATA
@@ -94,3 +99,4 @@ elif section == "Hasil Forecast":
     })
 
     st.line_chart(forecast_df)
+
