@@ -544,7 +544,7 @@ else:
             fig, axes = plt.subplots(1, 3, figsize=(15,4))
             
             # BASELINE LSTM
-            axes[0].plot(history_base.history['loss']+1)
+            axes[0].plot(history_base.history['loss'])+1)
             axes[0].plot(history_base.history['val_loss'])
             axes[0].set_title('Baseline LSTM')
             axes[0].set_xlabel('Epoch')
@@ -552,14 +552,14 @@ else:
             axes[0].legend(['Training Loss','Validation Loss'])
             
             # GA-LSTM
-            axes[1].plot(history_ga.history['loss']+1)
+            axes[1].plot(history_ga.history['loss'])+1)
             axes[1].plot(history_ga.history['val_loss'])
             axes[1].set_title('GA-LSTM')
             axes[1].set_xlabel('Epoch')
             axes[1].legend(['Training Loss','Validation Loss'])
             
             # PSO-LSTM
-            axes[2].plot(history_pso.history['loss']+1)
+            axes[2].plot(history_pso.history['loss'])+1)
             axes[2].plot(history_pso.history['val_loss'])
             axes[2].set_title('PSO-LSTM')
             axes[2].set_xlabel('Epoch')
@@ -647,6 +647,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
