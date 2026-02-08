@@ -145,7 +145,7 @@ else:
     BASE_UNITS = 16
     BASE_DROPOUT = 0.5
     BASE_BATCH = 64
-    BASE_EPOCHS = 50
+    BASE_EPOCHS = 100
     BASE_LR = 0.001
 
     def build_lstm_model(input_shape, units=16, dropout=0.01, lr=1e-3):
@@ -651,6 +651,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
