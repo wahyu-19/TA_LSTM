@@ -1,3 +1,4 @@
+```python
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -42,13 +43,11 @@ section = st.sidebar.radio(
     ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
 )
 
-
 # =============================
 # LOAD DATA
 # =============================
 @st.cache_data(ttl=3600)
 def load_data(ticker, start, end):
-
     df = yf.download(
         ticker,
         start=start.strftime("%Y-%m-%d"),
@@ -71,65 +70,64 @@ def load_data(ticker, start, end):
 
     return df
 
-# =============================
-# SECTION 1 : INFORMASI DATA
-# =============================
-if section == "Informasi Data":
+# Load data di sini
+data = load_data(ticker, start_date, end_date)
 
-st.subheader(f"Pergerakan Harga Saham {ticker}")
-st.line_chart(data['Close'])
+if data.empty:
+    st.error("Data tidak ditemukan untuk ticker tersebut.")
+else:
+    # =============================
+    # SECTION 1 : INFORMASI DATA
+    # =============================
+    if section == "Informasi Data":
+        st.subheader(f"Pergerakan Harga Saham {ticker}")
+        st.line_chart(data['Close'])
 
-st.subheader("Statistik Deskriptif (Close)")
-st.write(data['Close'].describe())
+        st.subheader("Statistik Deskriptif (Close)")
+        st.write(data['Close'].describe())
 
-# =============================
-# SECTION 2 : IN DEPTH ANALYSIS
-# =============================
-elif section == "In-Depth Analysis":
+    # =============================
+    # SECTION 2 : IN DEPTH ANALYSIS
+    # =============================
+    elif section == "In-Depth Analysis":
+        st.subheader("Perbandingan Model")
 
-    st.subheader("Perbandingan Model")
+        # placeholder hasil training
+        mape_baseline = 5.2
+        mape_ga = 4.6
+        mape_pso = 4.3
 
-    # placeholder hasil training
-    mape_baseline = 5.2
-    mape_ga = 4.6
-    mape_pso = 4.3
+        results = pd.DataFrame({
+            "Model":["Baseline","GA","PSO"],
+            "MAPE":[mape_baseline, mape_ga, mape_pso]
+        })
 
-    results = pd.DataFrame({
-        "Model":["Baseline","GA","PSO"],
-        "MAPE":[mape_baseline, mape_ga, mape_pso]
-    })
+        st.table(results)
 
-    st.table(results)
+        # validation loss dummy
+        fig, ax = plt.subplots()
+        ax.plot(np.random.rand(50), label="Baseline")
+        ax.plot(np.random.rand(50), label="GA")
+        ax.plot(np.random.rand(50), label="PSO")
+        ax.set_title("Validation Loss")
+        ax.legend()
+        st.pyplot(fig)
 
-    # validation loss dummy
-    fig, ax = plt.subplots()
-    ax.plot(np.random.rand(50), label="Baseline")
-    ax.plot(np.random.rand(50), label="GA")
-    ax.plot(np.random.rand(50), label="PSO")
-    ax.set_title("Validation Loss")
-    ax.legend()
-    st.pyplot(fig)
+    # =============================
+    # SECTION 3 : FORECAST
+    # =============================
+    elif section == "Hasil Forecast":
+        st.subheader("Forecast")
 
-# =============================
-# SECTION 3 : FORECAST
-# =============================
-elif section == "Hasil Forecast":
+        horizon = st.slider("Forecast berapa hari ke depan", 1, 90, 30)
 
-    st.subheader("Forecast")
+        # dummy forecast
+        last_price = data['Close'].iloc[-1]
+        forecast = last_price + np.cumsum(np.random.randn(horizon))
 
-    horizon = st.slider("Forecast berapa hari ke depan", 1, 90, 30)
+        forecast_df = pd.DataFrame({
+            "Forecast": forecast
+        })
 
-    # dummy forecast
-    last_price = data['Close'].iloc[-1]
-    forecast = last_price + np.cumsum(np.random.randn(horizon))
-
-    forecast_df = pd.DataFrame({
-        "Forecast": forecast
-    })
-
-    st.line_chart(forecast_df)
-
-
-
-
-
+        st.line_chart(forecast_df)
+```
