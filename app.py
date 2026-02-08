@@ -447,17 +447,18 @@ else:
     # SECTION 2 : IN DEPTH ANALYSIS
     # =============================
     elif section == "In-Depth Analysis":
-        st.subheader("Perbandingan Model")
-
-        results = pd.DataFrame({
-            "Model": ["Baseline", "PSO", "GA"],
-            "MAPE": [base_mape, pso_mape, ga_mape],
-            "sMAPE": [base_smape, pso_smape, ga_smape]
-        })
-
-        st.table(results)
-
         st.subheader("Validation Loss")
         fig, ax = plt.subplots()
+        
         ax.plot(history_base.history['val_loss'], label="Baseline")
-        ax.plot(history_p
+        ax.plot(history_pso.history['val_loss'], label="PSO")
+        ax.plot(history_ga.history['val_loss'], label="GA")
+        
+        ax.set_title("Validation Loss Comparison")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.legend()
+        
+        st.pyplot(fig)
+
+
