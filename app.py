@@ -462,6 +462,65 @@ else:
     model_pso, history_pso, pso_mape, pso_smape, y_pred_pso, y_true_pso, pso_gbest = train_pso()
     model_ga, history_ga, ga_mape, ga_smape, y_pred_ga, y_true_ga, ga_gbest = train_ga()
 
+
+    # =========================================================
+    # SESSION STATE (agar tidak retrain saat pindah tab)
+    # =========================================================
+    if "trained" not in st.session_state:
+        st.session_state.trained = False
+    
+    # =========================================================
+    # BUTTON TRAIN MODEL
+    # =========================================================
+    st.sidebar.markdown("### Training Model")
+
+    if st.sidebar.button("Run Training Model"):
+    
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+    
+        with st.spinner("Training models..."):
+    
+            # ================= BASELINE =================
+            status_text.write("Training Baseline LSTM...")
+            st.session_state.model_base, \
+            st.session_state.history_base, \
+            st.session_state.base_mape, \
+            st.session_state.base_smape, \
+            st.session_state.y_pred_base, \
+            st.session_state.y_true_base = train_baseline()
+    
+            progress_bar.progress(33)
+    
+            # ================= PSO =================
+            status_text.write("Training PSO-Optimized LSTM...")
+            st.session_state.model_pso, \
+            st.session_state.history_pso, \
+            st.session_state.pso_mape, \
+            st.session_state.pso_smape, \
+            st.session_state.y_pred_pso, \
+            st.session_state.y_true_pso, \
+            st.session_state.pso_gbest = train_pso()
+    
+            progress_bar.progress(66)
+    
+            # ================= GA =================
+            status_text.write("Training GA-Optimized LSTM...")
+            st.session_state.model_ga, \
+            st.session_state.history_ga, \
+            st.session_state.ga_mape, \
+            st.session_state.ga_smape, \
+            st.session_state.y_pred_ga, \
+            st.session_state.y_true_ga, \
+            st.session_state.ga_gbest = train_ga()
+    
+            progress_bar.progress(100)
+    
+            status_text.write("Training selesai.")
+            st.session_state.trained = True
+    
+        st.success("Semua model berhasil dilatih.")
+                
     # =============================
     # SECTION 1 : INFORMASI DATA
     # =============================
@@ -476,20 +535,68 @@ else:
     # SECTION 2 : IN DEPTH ANALYSIS
     # =============================
     elif section == "In-Depth Analysis":
-        st.subheader("Validation Loss")
-        fig, ax = plt.subplots()
-        
-        ax.plot(history_base.history['val_loss'], label="Baseline")
-        ax.plot(history_pso.history['val_loss'], label="PSO")
-        ax.plot(history_ga.history['val_loss'], label="GA")
-        
-        ax.set_title("Validation Loss Comparison")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Loss")
-        ax.legend()
-        
-        st.pyplot(fig)
 
+        if not st.session_state.trained:
+            st.warning("Klik 'Run Training Model' terlebih dahulu.")
+        else:
+            history_base = st.session_state.history_base
+            history_pso = st.session_state.history_pso
+            history_ga = st.session_state.history_ga
+    
+            st.subheader("Validation Loss Comparison")
+    
+            fig, ax = plt.subplots()
+    
+            ax.plot(history_base.history['val_loss'], label="Baseline")
+            ax.plot(history_pso.history['val_loss'], label="PSO")
+            ax.plot(history_ga.history['val_loss'], label="GA")
+    
+            ax.set_title("Validation Loss")
+            ax.set_xlabel("Epoch")
+            ax.set_ylabel("Loss")
+            ax.legend()
+    
+            st.pyplot(fig)
 
+    # =========================================================
+    # SECTION 3 : HASIL FORECAST
+    # =========================================================
+    elif section == "Hasil Forecast":
+    
+        if not st.session_state.trained:
+            st.warning("Klik 'Run Training Model' terlebih dahulu.")
+        else:
+            y_true = st.session_state.y_true_base
+    
+            st.subheader("Perbandingan Forecast")
+    
+            fig, ax = plt.subplots()
+    
+            ax.plot(y_true, label="Actual")
+            ax.plot(st.session_state.y_pred_base, label="Baseline")
+            ax.plot(st.session_state.y_pred_pso, label="PSO")
+            ax.plot(st.session_state.y_pred_ga, label="GA")
+    
+            ax.legend()
+            st.pyplot(fig)
+    
+            st.subheader("Perbandingan Error")
+    
+            results = pd.DataFrame({
+                "Model": ["Baseline", "PSO", "GA"],
+                "MAPE": [
+                    st.session_state.base_mape,
+                    st.session_state.pso_mape,
+                    st.session_state.ga_mape
+                ],
+                "SMAPE": [
+                    st.session_state.base_smape,
+                    st.session_state.pso_smape,
+                    st.session_state.ga_smape
+                ]
+            })
+    
+            st.dataframe(results)
+    
 
 
