@@ -31,8 +31,14 @@ section = st.sidebar.radio(
 def load_data(ticker, start, end):
     try:
         df = yf.download(ticker, start=start, end=end, progress=False)
-        df.dropna(inplace=True)
+
+        # pastikan hanya kolom Close
+        if isinstance(df.columns, pd.MultiIndex):
+            df = df['Close'].to_frame()
+
+        df = df[['Close']].dropna()
         return df
+
     except:
         return pd.DataFrame()
 
@@ -48,10 +54,11 @@ if data.empty:
 if section == "Informasi Data":
 
     st.subheader(f"Pergerakan Harga Saham {ticker}")
-    st.line_chart(data['Close'])
+    st.line_chart(data)
 
-    st.subheader("Statistik Deskriptif")
-    st.write(data.describe())
+    st.subheader("Statistik Deskriptif Harga Close")
+    desc = data['Close'].describe()
+    st.table(desc)
 
 # =============================
 # SECTION 2 : IN DEPTH ANALYSIS
@@ -99,4 +106,5 @@ elif section == "Hasil Forecast":
     })
 
     st.line_chart(forecast_df)
+
 
