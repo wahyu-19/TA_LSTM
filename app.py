@@ -242,7 +242,7 @@ else:
                             lr=lr
                         )
     
-                        model.fit(X_tr, y_tr, epochs=20, batch_size=batch, verbose=0)
+                        model.fit(X_tr, y_tr, epochs=10, batch_size=batch, verbose=0)
     
                         yv_pred = model.predict(X_va, verbose=0)
                         yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
@@ -321,7 +321,7 @@ else:
     
         history_final = model_final.fit(
             X_train, y_train,
-            epochs=50,
+            epochs=100,
             batch_size=best_batch,
             validation_split=0.2,
             verbose=0
@@ -359,7 +359,7 @@ else:
                 batch = int(np.round(indiv['batch_size']))
                 dropout = float(indiv['dropout'])
                 lr = float(indiv['lr'])
-                epochs_fixed = 20
+                epochs_fixed = 10
                 set_seed(42)
                 tf.keras.backend.clear_session()
                 model = build_lstm_model(
@@ -442,7 +442,7 @@ else:
 
         history_ga = final_model_ga.fit(
             X_train, y_train,
-            epochs=50,
+            epochs=100,
             batch_size=best_batch_ga,
             validation_split=0.2,
             verbose=0
@@ -541,47 +541,50 @@ else:
             # =====================================================
             # VALIDATION LOSS (3 garis dalam 1 grafik)
             # =====================================================
-            fig, axes = plt.subplots(1, 3, figsize=(15,4))
-            
-            # BASELINE LSTM
-            axes[0].plot(history_base.history['loss'])
-            axes[0].plot(history_base.history['val_loss'])
-            axes[0].set_title('Baseline LSTM')
-            axes[0].set_xlabel('Epoch')
-            axes[0].set_ylabel('Loss')
-            axes[0].legend(['Training Loss','Validation Loss'])
-            
-            # GA-LSTM
-            axes[1].plot(history_ga.history['loss'])
-            axes[1].plot(history_ga.history['val_loss'])
-            axes[1].set_title('GA-LSTM')
-            axes[1].set_xlabel('Epoch')
-            axes[1].legend(['Training Loss','Validation Loss'])
-            
-            # PSO-LSTM
-            axes[2].plot(history_pso.history['loss'])
-            axes[2].plot(history_pso.history['val_loss'])
-            axes[2].set_title('PSO-LSTM')
-            axes[2].set_xlabel('Epoch')
-            axes[2].legend(['Training Loss','Validation Loss'])
-            
-            plt.tight_layout()
-            st.pyplot(fig)
+            col1, col2, col3 = st.columns(3)
 
+            with col1:
+                fig1, ax1 = plt.subplots()
+                ax1.plot(history_base.history['loss'])
+                ax1.plot(history_base.history['val_loss'])
+                ax1.set_title('Baseline LSTM')
+                ax1.set_xlabel('Epoch')
+                ax1.set_ylabel('Loss')
+                ax1.legend(['Training Loss','Validation Loss'])
+                st.pyplot(fig1, use_container_width=True)
+            
+            with col2:
+                fig2, ax2 = plt.subplots()
+                ax2.plot(history_ga.history['loss'])
+                ax2.plot(history_ga.history['val_loss'])
+                ax2.set_title('GA-LSTM')
+                ax2.set_xlabel('Epoch')
+                ax2.legend(['Training Loss','Validation Loss'])
+                st.pyplot(fig2, use_container_width=True)
+            
+            with col3:
+                fig3, ax3 = plt.subplots()
+                ax3.plot(history_pso.history['loss'])
+                ax3.plot(history_pso.history['val_loss'])
+                ax3.set_title('PSO-LSTM')
+                ax3.set_xlabel('Epoch')
+                ax3.legend(['Training Loss','Validation Loss'])
+                st.pyplot(fig3, use_container_width=True)
     
             # =====================================================
             # ACTUAL VS PREDICTED (3 MODEL)
             # =====================================================
             st.subheader("Actual vs Predicted Comparison")
     
-            fig2, ax2 = plt.subplots(figsize=(7,3))
-            ax2.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
-            ax2.plot(st.session_state.y_pred_base, label="Baseline")
-            ax2.plot(st.session_state.y_pred_pso, label="PSO")
-            ax2.plot(st.session_state.y_pred_ga, label="GA")
-            ax2.legend()
-            st.pyplot(fig2)
-    
+            fig4, ax4 = plt.subplots()
+            ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
+            ax4.plot(st.session_state.y_pred_base, label="Baseline")
+            ax4.plot(st.session_state.y_pred_pso, label="PSO")
+            ax4.plot(st.session_state.y_pred_ga, label="GA")
+            ax4.legend()
+            
+            st.pyplot(fig4, use_container_width=True)
+
             # =====================================================
             # MAPE TABLE
             # =====================================================
@@ -630,11 +633,12 @@ else:
             # ===============================
             # Grafik forecast
             # ===============================
-            fig, ax = plt.subplots(figsize=(8,3))
+            fig, ax = plt.subplots()
             ax.plot(future_preds, label="Forecast")
             ax.set_title("Future Forecast")
             ax.legend()
-            st.pyplot(fig)
+            st.pyplot(fig, use_container_width=True)
+
     
             # ===============================
             # tabel forecast
@@ -647,6 +651,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
