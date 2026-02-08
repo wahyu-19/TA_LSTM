@@ -543,49 +543,53 @@ else:
             history_pso = st.session_state.history_pso
             history_ga = st.session_state.history_ga
     
-            st.subheader("Validation Loss Comparison")
-    
-            col1, col2, col3 = st.columns(3)
-    
-            # ===== BASELINE =====
-            with col1:
-                fig1, ax1 = plt.subplots(figsize=(4,3))
-                ax1.plot(history_base.history['val_loss'])
-                ax1.set_title("Baseline")
-                ax1.set_xlabel("Epoch")
-                ax1.set_ylabel("Loss")
-                st.pyplot(fig1)
-    
-            # ===== PSO =====
-            with col2:
-                fig2, ax2 = plt.subplots(figsize=(4,3))
-                ax2.plot(history_pso.history['val_loss'])
-                ax2.set_title("PSO")
-                ax2.set_xlabel("Epoch")
-                st.pyplot(fig2)
-    
-            # ===== GA =====
-            with col3:
-                fig3, ax3 = plt.subplots(figsize=(4,3))
-                ax3.plot(history_ga.history['val_loss'])
-                ax3.set_title("GA")
-                ax3.set_xlabel("Epoch")
-                st.pyplot(fig3)
+            # =====================================================
+            # VALIDATION LOSS (3 garis dalam 1 grafik)
+            # =====================================================
+            fig, axes = plt.subplots(1, 3, figsize=(15,4))
+            
+            # LSTM
+            axes[0].plot(history_lstm.history['loss'])
+            axes[0].plot(history_lstm.history['val_loss'])
+            axes[0].set_title('LSTM')
+            axes[0].set_xlabel('Epoch')
+            axes[0].set_ylabel('Loss')
+            axes[0].legend(['Training Loss','Validation Loss'])
+            
+            # GA-LSTM
+            axes[1].plot(history_ga.history['loss'])
+            axes[1].plot(history_ga.history['val_loss'])
+            axes[1].set_title('GA-LSTM')
+            axes[1].set_xlabel('Epoch')
+            axes[1].legend(['Training Loss','Validation Loss'])
+            
+            # PSO-LSTM
+            axes[2].plot(history_pso.history['loss'])
+            axes[2].plot(history_pso.history['val_loss'])
+            axes[2].set_title('PSO-LSTM')
+            axes[2].set_xlabel('Epoch')
+            axes[2].legend(['Training Loss','Validation Loss'])
+            
+            plt.tight_layout()
+            st.pyplot(fig)
 
-            # ===============================
-            # Grafik Train vs Actual (kecil)
-            # ===============================
-            st.subheader("Train vs Actual")
     
-            fig4, ax4 = plt.subplots(figsize=(6,3))
-            ax4.plot(st.session_state.y_true_base, label="Actual")
-            ax4.plot(st.session_state.y_pred_base, label="Predicted")
-            ax4.legend()
-            st.pyplot(fig4)
+            # =====================================================
+            # ACTUAL VS PREDICTED (3 MODEL)
+            # =====================================================
+            st.subheader("Actual vs Predicted Comparison")
     
-            # ===============================
-            # Tabel Error (MAPE saja)
-            # ===============================
+            fig2, ax2 = plt.subplots(figsize=(7,3))
+            ax2.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
+            ax2.plot(st.session_state.y_pred_base, label="Baseline")
+            ax2.plot(st.session_state.y_pred_pso, label="PSO")
+            ax2.plot(st.session_state.y_pred_ga, label="GA")
+            ax2.legend()
+            st.pyplot(fig2)
+    
+            # =====================================================
+            # MAPE TABLE
+            # =====================================================
             st.subheader("MAPE Comparison")
     
             results = pd.DataFrame({
@@ -598,7 +602,8 @@ else:
             })
     
             st.dataframe(results)
-
+    
+        
 
     # =========================================================
     # SECTION 3 : HASIL FORECAST
@@ -647,6 +652,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
