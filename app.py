@@ -205,108 +205,137 @@ else:
 
     @st.cache_data
     def train_pso():
-        # PSO Config
-        PSO_N_PARTICLES = 10
-        PSO_ITERS = 10
-        PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
-        PSO_BOUNDS = ([16, 0.0001, 8, 0.1], [160, 0.001, 256, 1])
 
-        val_frac_for_pso = 0.2
-        n_tr_samples = X_train.shape[0]
-        n_tr_val = int(n_tr_samples * (1 - val_frac_for_pso))
+    PSO_N_PARTICLES = 10
+    PSO_ITERS = 10
+    PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
+    PSO_BOUNDS = ([16, 0.0001, 8, 0.1], [160, 0.001, 256, 1])
 
-        X_tr_for_pso = X_train[:n_tr_val]
-        y_tr_for_pso = y_train[:n_tr_val]
-        X_val_for_pso = X_train[n_tr_val:]
-        y_val_for_pso = y_train[n_tr_val:]
+    val_frac_for_pso = 0.2
+    n_tr_samples = X_train.shape[0]
+    n_tr_val = int(n_tr_samples * (1 - val_frac_for_pso))
 
-        def make_pso_obj(X_tr, y_tr, X_va, y_va, scaler_y):
-            def obj_fn(particles):
-                n_particles = particles.shape[0]
-                costs = np.zeros(n_particles)
-                for i, p in enumerate(particles):
-                    units = int(np.round(p[0]))
-                    lr = float(p[1])
-                    batch = int(np.round(p[2]))
-                    dropout = float(p[3])
-                    epochs_fixed = 100
-                    try:
-                        set_seed(42)
-                        tf.keras.backend.clear_session()
-                        model = build_lstm_model(
-                            input_shape=(X_tr.shape[1], X_tr.shape[2]),
-                            units=units,
-                            dropout=dropout,
-                            lr=lr
-                        )
-                        model.fit(X_tr, y_tr, epochs=epochs_fixed, batch_size=batch, verbose=0)
-                        yv_pred = model.predict(X_va, verbose=0)
-                        yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
-                        yv_true_orig = scaler_y.inverse_transform(y_va).flatten()
-                        costs[i] = mean_squared_error(yv_true_orig, yv_pred_orig)
-                    except:
-                        costs[i] = 1e12
+    X_tr_for_pso = X_train[:n_tr_val]
+    y_tr_for_pso = y_train[:n_tr_val]
+    X_val_for_pso = X_train[n_tr_val:]
+    y_val_for_pso = y_train[n_tr_val:]
+
+    def make_pso_obj(X_tr, y_tr, X_va, y_va, scaler_y):
+        def obj_fn(particles):
+            n_particles = particles.shape[0]
+            costs = np.zeros(n_particles)
+
+            for i, p in enumerate(particles):
+                units = int(np.round(p[0]))
+                lr = float(p[1])
+                batch = int(np.round(p[2]))
+                dropout = float(p[3])
+
+                try:
+                    set_seed(42)
                     tf.keras.backend.clear_session()
-                return costs
-            return obj_fn
 
-        pso_obj = make_pso_obj(X_tr_for_pso, y_tr_for_pso, X_val_for_pso, y_val_for_pso, scaler_y)
+                    model = build_lstm_model(
+                        input_shape=(X_tr.shape[1], X_tr.shape[2]),
+                        units=units,
+                        dropout=dropout,
+                        lr=lr
+                    )
 
-        optimizer = GlobalBestPSO(n_particles=PSO_N_PARTICLES, dimensions=4, options=PSO_OPTIONS, bounds=PSO_BOUNDS)
-        history_gbest_cost = []
-        history_gbest_pos = []
+                    model.fit(X_tr, y_tr, epochs=50, batch_size=batch, verbose=0)
 
-        for it in range(PSO_ITERS):
-            costs = pso_obj(optimizer.swarm.position)
-            mask = costs < optimizer.swarm.pbest_cost
-            optimizer.swarm.pbest_cost[mask] = costs[mask]
-            optimizer.swarm.pbest_pos[mask] = optimizer.swarm.position[mask].copy()
-            best_idx = np.argmin(optimizer.swarm.pbest_cost)
-            optimizer.swarm.best_cost = optimizer.swarm.pbest_cost[best_idx]
-            optimizer.swarm.best_pos = optimizer.swarm.pbest_pos[best_idx].copy()
-            history_gbest_cost.append(float(optimizer.swarm.best_cost))
-            history_gbest_pos.append(optimizer.swarm.best_pos.copy())
-            r1 = np.random.rand(*optimizer.swarm.position.shape)
-            r2 = np.random.rand(*optimizer.swarm.position.shape)
-            optimizer.swarm.velocity = (
-                PSO_OPTIONS['w'] * optimizer.swarm.velocity
-                + PSO_OPTIONS['c1'] * r1 * (optimizer.swarm.pbest_pos - optimizer.swarm.position)
-                + PSO_OPTIONS['c2'] * r2 * (optimizer.swarm.best_pos - optimizer.swarm.position)
-            )
-            optimizer.swarm.position += optimizer.swarm.velocity
-            lb, ub = np.array(PSO_BOUNDS[0]), np.array(PSO_BOUNDS[1])
-            optimizer.swarm.position = np.clip(optimizer.swarm.position, lb, ub)
+                    yv_pred = model.predict(X_va, verbose=0)
+                    yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
+                    yv_true_orig = scaler_y.inverse_transform(y_va).flatten()
 
-        best_pos = history_gbest_pos[-1]
-        best_units = int(np.round(best_pos[0]))
-        best_lr = float(best_pos[1])
-        best_batch = int(np.round(best_pos[2]))
-        best_dropout = float(best_pos[3])
+                    costs[i] = mean_squared_error(yv_true_orig, yv_pred_orig)
 
-        set_seed(42)
-        model_final = build_lstm_model(
-            input_shape=(X_train.shape[1], X_train.shape[2]),
-            units=best_units,
-            dropout=best_dropout,
-            lr=best_lr
+                except:
+                    costs[i] = 1e12
+
+            return costs
+        return obj_fn
+
+    pso_obj = make_pso_obj(X_tr_for_pso, y_tr_for_pso, X_val_for_pso, y_val_for_pso, scaler_y)
+
+    optimizer = GlobalBestPSO(
+        n_particles=PSO_N_PARTICLES,
+        dimensions=4,
+        options=PSO_OPTIONS,
+        bounds=PSO_BOUNDS
+    )
+
+    # ===== INIT PBEST =====
+    optimizer.swarm.pbest_cost = np.full(PSO_N_PARTICLES, np.inf)
+    optimizer.swarm.pbest_pos = optimizer.swarm.position.copy()
+    optimizer.swarm.best_cost = np.inf
+    optimizer.swarm.best_pos = optimizer.swarm.position[0].copy()
+
+    history_gbest_cost = []
+    history_gbest_pos = []
+
+    for it in range(PSO_ITERS):
+
+        costs = pso_obj(optimizer.swarm.position)
+
+        mask = costs < optimizer.swarm.pbest_cost
+        optimizer.swarm.pbest_cost[mask] = costs[mask]
+        optimizer.swarm.pbest_pos[mask] = optimizer.swarm.position[mask]
+
+        best_idx = np.argmin(optimizer.swarm.pbest_cost)
+        optimizer.swarm.best_cost = optimizer.swarm.pbest_cost[best_idx]
+        optimizer.swarm.best_pos = optimizer.swarm.pbest_pos[best_idx]
+
+        history_gbest_cost.append(float(optimizer.swarm.best_cost))
+        history_gbest_pos.append(optimizer.swarm.best_pos.copy())
+
+        r1 = np.random.rand(*optimizer.swarm.position.shape)
+        r2 = np.random.rand(*optimizer.swarm.position.shape)
+
+        optimizer.swarm.velocity = (
+            PSO_OPTIONS['w'] * optimizer.swarm.velocity
+            + PSO_OPTIONS['c1'] * r1 * (optimizer.swarm.pbest_pos - optimizer.swarm.position)
+            + PSO_OPTIONS['c2'] * r2 * (optimizer.swarm.best_pos - optimizer.swarm.position)
         )
 
-        history_final = model_final.fit(
-            X_train, y_train,
-            epochs=100,
-            batch_size=best_batch,
-            validation_split=0.2,
-            verbose=0
-        )
+        optimizer.swarm.position += optimizer.swarm.velocity
 
-        y_pred_scaled_final = model_final.predict(X_test, verbose=0)
-        y_pred_final = scaler_y.inverse_transform(y_pred_scaled_final).flatten()
-        y_true_final = scaler_y.inverse_transform(y_test).flatten()
+        lb, ub = np.array(PSO_BOUNDS[0]), np.array(PSO_BOUNDS[1])
+        optimizer.swarm.position = np.clip(optimizer.swarm.position, lb, ub)
 
-        pso_mape = mape(y_true_final, y_pred_final)
-        pso_smape = smape(y_true_final, y_pred_final)
+    best_pos = history_gbest_pos[-1]
 
-        return model_final, history_final, pso_mape, pso_smape, y_pred_final, y_true_final, history_gbest_cost
+    best_units = int(np.round(best_pos[0]))
+    best_lr = float(best_pos[1])
+    best_batch = int(np.round(best_pos[2]))
+    best_dropout = float(best_pos[3])
+
+    set_seed(42)
+
+    model_final = build_lstm_model(
+        input_shape=(X_train.shape[1], X_train.shape[2]),
+        units=best_units,
+        dropout=best_dropout,
+        lr=best_lr
+    )
+
+    history_final = model_final.fit(
+        X_train, y_train,
+        epochs=100,
+        batch_size=best_batch,
+        validation_split=0.2,
+        verbose=0
+    )
+
+    y_pred_scaled_final = model_final.predict(X_test, verbose=0)
+    y_pred_final = scaler_y.inverse_transform(y_pred_scaled_final).flatten()
+    y_true_final = scaler_y.inverse_transform(y_test).flatten()
+
+    pso_mape = mape(y_true_final, y_pred_final)
+    pso_smape = smape(y_true_final, y_pred_final)
+
+    return model_final, history_final, pso_mape, pso_smape, y_pred_final, y_true_final, history_gbest_cost
+
 
     @st.cache_data
     def train_ga():
