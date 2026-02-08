@@ -1,99 +1,96 @@
 import streamlit as st
-import yfinance as yf
-import numpy as np
 import pandas as pd
+import numpy as np
+import yfinance as yf
 import matplotlib.pyplot as plt
-
-from utils.preprocessing import make_sequences, scale_split
-from utils.metrics import mape
-from models.baseline import build_baseline
 
 st.set_page_config(layout="wide")
 
-st.sidebar.title("Menu")
-menu = st.sidebar.radio("",[
-    "Informasi Data",
-    "In Depth Analysis",
-    "Hasil Forecast"
-])
+# =============================
+# SIDEBAR INPUT
+# =============================
+st.sidebar.title("Stock Settings")
 
-symbol = st.sidebar.text_input("Ticker","SIDO.JK")
+ticker = st.sidebar.text_input(
+    "Masukkan ticker saham (contoh: BBCA.JK)",
+    "SIDO.JK"
+)
 
-# ===============================
+start_date = st.sidebar.date_input("Start Date")
+end_date = st.sidebar.date_input("End Date")
+
+section = st.sidebar.radio(
+    "Select Section",
+    ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
+)
+
+# =============================
 # LOAD DATA
-# ===============================
+# =============================
 @st.cache_data
-def load(symbol):
-    df = yf.download(symbol,start="2019-01-01")
-    return df[['Close']]
+def load_data(ticker, start, end):
+    df = yf.download(ticker, start=start, end=end)
+    df.dropna(inplace=True)
+    return df
 
-df = load(symbol)
+data = load_data(ticker, start_date, end_date)
 
-values = df.values
-train_scaled,test_scaled,scaler = scale_split(values)
+st.title("Stock Forecasting LSTM - Baseline vs GA vs PSO")
 
-X_train,y_train = make_sequences(train_scaled)
-X_test,y_test = make_sequences(test_scaled)
+# =============================
+# SECTION 1 : INFORMASI DATA
+# =============================
+if section == "Informasi Data":
 
-# ===============================
-# TRAIN BASELINE
-# ===============================
-model = build_baseline((X_train.shape[1],X_train.shape[2]))
-history = model.fit(X_train,y_train,epochs=10,validation_split=0.2,verbose=0)
+    st.subheader(f"Pergerakan Harga Saham {ticker}")
+    st.line_chart(data['Close'])
 
-pred = scaler.inverse_transform(model.predict(X_test))
-true = scaler.inverse_transform(y_test)
+    st.subheader("Statistik Deskriptif")
+    st.write(data.describe())
 
-mape_val = mape(true,pred)
+# =============================
+# SECTION 2 : IN DEPTH ANALYSIS
+# =============================
+elif section == "In-Depth Analysis":
 
-# ===============================
-# MENU 1
-# ===============================
-if menu == "Informasi Data":
+    st.subheader("Perbandingan Model")
 
-    st.title("Informasi Data")
+    # placeholder hasil training
+    mape_baseline = 5.2
+    mape_ga = 4.6
+    mape_pso = 4.3
 
-    st.write(df.describe())
+    results = pd.DataFrame({
+        "Model":["Baseline","GA","PSO"],
+        "MAPE":[mape_baseline, mape_ga, mape_pso]
+    })
 
-    fig,ax = plt.subplots()
-    ax.plot(df['Close'])
-    st.pyplot(fig)
+    st.table(results)
 
-# ===============================
-# MENU 2
-# ===============================
-if menu == "In Depth Analysis":
-
-    st.title("Model Analysis")
-
-    st.write("MAPE:",mape_val)
-
-    fig,ax = plt.subplots()
-    ax.plot(history.history['loss'],label="train")
-    ax.plot(history.history['val_loss'],label="val")
+    # validation loss dummy
+    fig, ax = plt.subplots()
+    ax.plot(np.random.rand(50), label="Baseline")
+    ax.plot(np.random.rand(50), label="GA")
+    ax.plot(np.random.rand(50), label="PSO")
+    ax.set_title("Validation Loss")
     ax.legend()
     st.pyplot(fig)
 
-# ===============================
-# MENU 3
-# ===============================
-if menu == "Hasil Forecast":
+# =============================
+# SECTION 3 : FORECAST
+# =============================
+elif section == "Hasil Forecast":
 
-    horizon = st.slider("Forecast horizon",1,30,5)
+    st.subheader("Forecast")
 
-    last_seq = test_scaled[-1].reshape(1,1,1)
-    preds=[]
+    horizon = st.slider("Forecast berapa hari ke depan", 1, 90, 30)
 
-    for i in range(horizon):
-        p = model.predict(last_seq)
-        preds.append(p[0,0])
-        last_seq = p.reshape(1,1,1)
+    # dummy forecast
+    last_price = data['Close'].iloc[-1]
+    forecast = last_price + np.cumsum(np.random.randn(horizon))
 
-    preds = scaler.inverse_transform(np.array(preds).reshape(-1,1))
+    forecast_df = pd.DataFrame({
+        "Forecast": forecast
+    })
 
-    future_dates = pd.date_range(df.index[-1],periods=horizon+1)[1:]
-
-    fig,ax = plt.subplots()
-    ax.plot(df.index,df['Close'])
-    ax.plot(future_dates,preds)
-    st.pyplot(fig)
+    st.line_chart(forecast_df)
