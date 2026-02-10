@@ -390,9 +390,27 @@ else:
             if np.random.rand() < rate:
                 child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
             return child
-
-        def crossover(p1, p2):
-            return {k: p1[k] if np.random.rand() < 0.5 else p2[k] for k in p1}
+                
+        def crossover(p1, p2, alpha=0.25):
+            """
+            Extended Intermediate Crossover
+            """
+            child = {}
+            for k in p1.keys():
+                val1 = p1[k]
+                val2 = p2[k]
+        
+                lower = min(val1, val2) - alpha * abs(val1 - val2)
+                upper = max(val1, val2) + alpha * abs(val1 - val2)
+        
+                new_val = np.random.uniform(lower, upper)
+        
+                if k in ['units', 'batch_size']:
+                    child[k] = int(np.round(new_val))
+                else:
+                    child[k] = float(new_val)
+        
+            return child
 
         val_frac_for_pso = 0.2
         n_tr_samples = X_train.shape[0]
@@ -542,48 +560,49 @@ else:
             # VALIDATION LOSS (3 garis dalam 1 grafik)
             # =====================================================
             col1, col2, col3 = st.columns(3)
-
+            
             with col1:
-                fig1, ax1 = plt.subplots()
+                fig1, ax1 = plt.subplots(figsize=(4, 3))  # <<< DIUBAH
                 ax1.plot(history_base.history['loss'])
                 ax1.plot(history_base.history['val_loss'])
                 ax1.set_title('Baseline LSTM')
                 ax1.set_xlabel('Epoch')
                 ax1.set_ylabel('Loss')
-                ax1.legend(['Training Loss','Validation Loss'])
+                ax1.legend(['Training Loss','Validation Loss'], fontsize=8)
                 st.pyplot(fig1, use_container_width=True)
             
             with col2:
-                fig2, ax2 = plt.subplots()
+                fig2, ax2 = plt.subplots(figsize=(4, 3))  # <<< DIUBAH
                 ax2.plot(history_ga.history['loss'])
                 ax2.plot(history_ga.history['val_loss'])
                 ax2.set_title('GA-LSTM')
                 ax2.set_xlabel('Epoch')
-                ax2.legend(['Training Loss','Validation Loss'])
+                ax2.legend(['Training Loss','Validation Loss'], fontsize=8)
                 st.pyplot(fig2, use_container_width=True)
             
             with col3:
-                fig3, ax3 = plt.subplots()
+                fig3, ax3 = plt.subplots(figsize=(4, 3))  # <<< DIUBAH
                 ax3.plot(history_pso.history['loss'])
                 ax3.plot(history_pso.history['val_loss'])
                 ax3.set_title('PSO-LSTM')
                 ax3.set_xlabel('Epoch')
-                ax3.legend(['Training Loss','Validation Loss'])
+                ax3.legend(['Training Loss','Validation Loss'], fontsize=8)
                 st.pyplot(fig3, use_container_width=True)
-    
+
             # =====================================================
             # ACTUAL VS PREDICTED (3 MODEL)
             # =====================================================
             st.subheader("Actual vs Predicted Comparison")
-    
-            fig4, ax4 = plt.subplots()
+            
+            fig4, ax4 = plt.subplots(figsize=(6, 3))  # <<< DIUBAH
             ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
             ax4.plot(st.session_state.y_pred_base, label="Baseline")
             ax4.plot(st.session_state.y_pred_pso, label="PSO")
             ax4.plot(st.session_state.y_pred_ga, label="GA")
-            ax4.legend()
+            ax4.legend(fontsize=8)
             
             st.pyplot(fig4, use_container_width=True)
+
 
             # =====================================================
             # MAPE TABLE
@@ -602,7 +621,6 @@ else:
             st.dataframe(results)
     
         
-
     # =========================================================
     # SECTION 3 : HASIL FORECAST
     # =========================================================
@@ -633,13 +651,18 @@ else:
             # ===============================
             # Grafik forecast
             # ===============================
-            fig, ax = plt.subplots()
-            ax.plot(future_preds, label="Forecast")
-            ax.set_title("Future Forecast")
-            ax.legend()
-            st.pyplot(fig, use_container_width=True)
+            last_actual = st.session_state.y_true_base[-1]
 
-    
+            combined = np.concatenate([[last_actual], future_preds])
+            
+            fig_future, ax_future = plt.subplots(figsize=(6,3))
+            ax_future.plot(range(len(combined)), combined, marker='o', label="Forecast")
+            ax_future.axvline(0, linestyle='--', linewidth=1)  # batas mulai forecast
+            ax_future.set_title("Future Forecast Time Series")
+            ax_future.legend()
+            
+            st.pyplot(fig_future, use_container_width=True)
+
             # ===============================
             # tabel forecast
             # ===============================
@@ -651,6 +674,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
