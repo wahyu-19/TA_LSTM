@@ -390,9 +390,29 @@ else:
             if np.random.rand() < rate:
                 child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
             return child
-
-        def crossover(p1, p2):
-            return {k: p1[k] if np.random.rand() < 0.5 else p2[k] for k in p1}
+        
+        
+        def crossover(p1, p2, alpha=0.25):
+            """
+            Extended Intermediate Crossover
+            """
+            child = {}
+            for k in p1.keys():
+                val1 = p1[k]
+                val2 = p2[k]
+        
+                lower = min(val1, val2) - alpha * abs(val1 - val2)
+                upper = max(val1, val2) + alpha * abs(val1 - val2)
+        
+                new_val = np.random.uniform(lower, upper)
+        
+                if k in ['units', 'batch_size']:
+                    child[k] = int(np.round(new_val))
+                else:
+                    child[k] = float(new_val)
+        
+            return child
+        
 
         val_frac_for_pso = 0.2
         n_tr_samples = X_train.shape[0]
@@ -651,41 +671,3 @@ else:
             })
     
             st.dataframe(forecast_df)
-
-ubah crossover GA menjadi 
-
-def mutate(indiv, lb, ub, rate):
-    child = copy.deepcopy(indiv)
-    if np.random.rand() < rate:
-        child['units'] = int(np.random.randint(lb[0], ub[0] + 1))
-    if np.random.rand() < rate:
-        child['batch_size'] = int(np.random.randint(lb[1], ub[1] + 1))
-    if np.random.rand() < rate:
-        child['dropout'] = float(np.random.uniform(lb[2], ub[2]))
-    if np.random.rand() < rate:
-        child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
-    return child
-
-def crossover(p1, p2, alpha=0.25):
-    """
-    Implementasi Extended Intermediate Crossover.
-    Menghasilkan nilai anak di dalam rentang [p1 - alpha, p2 + alpha].
-    """
-    child = {}
-    for k in p1.keys():
-        val1 = p1[k]
-        val2 = p2[k]
-        
-        # Tentukan rentang untuk tiap gen
-        lower = min(val1, val2) - alpha * abs(val1 - val2)
-        upper = max(val1, val2) + alpha * abs(val1 - val2)
-        
-        new_val = np.random.uniform(lower, upper)
-        
-        # Pastikan tipe data sesuai (integer untuk units dan batch_size)
-        if k in ['units', 'batch_size']:
-            child[k] = int(np.round(new_val))
-        else:
-            child[k] = float(new_val)
-            
-    return child
