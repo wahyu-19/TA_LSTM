@@ -33,13 +33,6 @@ section = st.sidebar.radio(
     ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
 )
 
-st.sidebar.subheader("Sumber Data")
-
-uploaded_file = st.sidebar.file_uploader(
-    "Upload data saham (Excel)",
-    type=["xlsx", "xls"]
-)
-
 # ======================================
 # LOAD DATA (Excel / Yahoo)
 # ======================================
@@ -60,10 +53,7 @@ if uploaded_file is not None:
 else:
     st.warning("Silakan upload file Excel terlebih dahulu.")
     st.stop()
-    
-if data.empty:
-    st.error("Data tidak ditemukan untuk ticker tersebut.")
-else:
+
     # =============================
     # PREPROCESS DATA (seperti di kode Anda)
     # =============================
@@ -658,6 +648,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
