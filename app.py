@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import yfinance as yf
 import datetime
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -23,51 +24,72 @@ random.seed(42)
 
 st.set_page_config(layout="wide")
 
-# ======================================
+# =============================
 # SIDEBAR INPUT
-# ======================================
-st.sidebar.header("Input Parameter")
+# =============================
+st.sidebar.title("Stock Settings")
+
+ticker_input = st.sidebar.text_input(
+    "Masukkan ticker saham (contoh: BBCA)",
+    "SIDO"
+)
+
+# otomatis tambah .JK jika belum ada
+if ".JK" not in ticker_input:
+    ticker = ticker_input.upper() + ".JK"
+else:
+    ticker = ticker_input.upper()
+
+today = datetime.date.today()
+
+start_date = st.sidebar.date_input(
+    "Start Date",
+    datetime.date(2019,7,1)
+)
+
+end_date = st.sidebar.date_input(
+    "End Date",
+    datetime.date(2025,7,1)
+)
 
 section = st.sidebar.radio(
     "Select Section",
     ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
 )
 
-# tombol load data
-if uploaded_file is not None:
-    if st.sidebar.button("Load Data"):
-        data = pd.read_excel(uploaded_file)
+# =============================
+# LOAD DATA
+# =============================
+@st.cache_resource(ttl=3600)
+def load_data(ticker, start, end):
+    df = yf.download(
+        ticker,
+        start=start.strftime("%Y-%m-%d"),
+        end=end.strftime("%Y-%m-%d"),
+        progress=False,
+        auto_adjust=False
+    )
 
-        # pastikan kolom date
-        if "Date" in data.columns:
-            data["Date"] = pd.to_datetime(data["Date"])
-            data.set_index("Date", inplace=True)
+    if df.empty:
+        return pd.DataFrame()
 
-        st.session_state["data"] = data
-        st.sidebar.success("Data berhasil dimuat")
+    # Jika MultiIndex kolom
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
 
-# ======================================
-# LOAD DATA (Excel / Yahoo)
-# ======================================
-st.sidebar.subheader("Sumber Data")
+    # Ambil hanya Close
+    df = df[['Close']].copy()
 
-uploaded_file = st.sidebar.file_uploader(
-    "Upload data saham (Excel)",
-    type=["xlsx","xls"],
-    key="excel_upload"
-)
+    df.dropna(inplace=True)
 
-if uploaded_file is not None:
-    data = pd.read_excel(uploaded_file)
-    data['Date'] = pd.to_datetime(data['Date'])
-    data = data.sort_values('Date')
-    data.set_index('Date', inplace=True)
-    data = data[['Close']]
-    st.sidebar.success("Data dari Excel")
+    return df
+
+# Load data
+data = load_data(ticker, start_date, end_date)
+
+if data.empty:
+    st.error("Data tidak ditemukan untuk ticker tersebut.")
 else:
-    st.warning("Silakan upload file Excel terlebih dahulu.")
-    st.stop()
-
     # =============================
     # PREPROCESS DATA (seperti di kode Anda)
     # =============================
@@ -368,7 +390,8 @@ else:
             if np.random.rand() < rate:
                 child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
             return child
-                
+        
+        
         def crossover(p1, p2, alpha=0.25):
             """
             Extended Intermediate Crossover
@@ -516,18 +539,11 @@ else:
     # SECTION 1 : INFORMASI DATA
     # =============================
     if section == "Informasi Data":
+        st.subheader(f"Pergerakan Harga Saham {ticker}")
+        st.line_chart(data['Close'])
 
-        if "data" not in st.session_state:
-            st.warning("Upload dan Load Data terlebih dahulu")
-        else:
-            data = st.session_state["data"]
-    
-            st.subheader("Pergerakan Harga Saham")
-            st.line_chart(data[["Close"]])
-    
-            st.subheader("Statistik Deskriptif")
-            st.write(data.describe())
-
+        st.subheader("Statistik Deskriptif (Close)")
+        st.write(data['Close'].describe())
 
     # =============================
     # SECTION 2 : IN DEPTH ANALYSIS
@@ -605,7 +621,7 @@ else:
     
             st.dataframe(results)
     
-        
+    
     # =========================================================
     # SECTION 3 : HASIL FORECAST
     # =========================================================
@@ -633,21 +649,23 @@ else:
     
             future_preds = scaler_y.inverse_transform(np.array(future_preds).reshape(-1,1)).flatten()
     
-            # ===============================
-            # Grafik forecast
-            # ===============================
-            last_actual = st.session_state.y_true_base[-1]
-
-            combined = np.concatenate([[last_actual], future_preds])
+            # =========================
+            # Plot Forecast Time Series
+            # =========================
+            st.subheader("Future Forecast Result")
             
-            fig_future, ax_future = plt.subplots(figsize=(6,3))
-            ax_future.plot(range(len(combined)), combined, marker='o', label="Forecast")
-            ax_future.axvline(0, linestyle='--', linewidth=1)  # batas mulai forecast
-            ax_future.set_title("Future Forecast Time Series")
+            fig_future, ax_future = plt.subplots(figsize=(6,3))  # ukuran kecil
+            
+            ax_future.plot(range(len(future_preds)), future_preds, marker='o', label="Forecast")
+            ax_future.set_xlabel("Forecast Horizon (Day)")
+            ax_future.set_ylabel("Price")
+            ax_future.set_title("Future Time Series Forecast")
             ax_future.legend()
             
             st.pyplot(fig_future, use_container_width=True)
 
+
+    
             # ===============================
             # tabel forecast
             # ===============================
@@ -659,27 +677,3 @@ else:
             })
     
             st.dataframe(forecast_df)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
