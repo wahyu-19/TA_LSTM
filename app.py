@@ -34,6 +34,8 @@ ticker = st.sidebar.text_input("Ticker saham", "SIDO.JK")
 start_date = st.sidebar.date_input("Start date")
 end_date   = st.sidebar.date_input("End date")
 
+section = st.sidebar.radio( "Select Section", ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"] )
+
 # ======================================
 # LOAD DATA (Excel / Yahoo)
 # ======================================
