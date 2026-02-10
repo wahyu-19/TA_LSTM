@@ -33,12 +33,6 @@ section = st.sidebar.radio(
     ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
 )
 
-uploaded_file = st.sidebar.file_uploader(
-    "Upload data saham (Excel)",
-    type=["xlsx","xls"],
-    key="excel_upload"
-)
-
 # tombol load data
 if uploaded_file is not None:
     if st.sidebar.button("Load Data"):
@@ -59,7 +53,8 @@ st.sidebar.subheader("Sumber Data")
 
 uploaded_file = st.sidebar.file_uploader(
     "Upload data saham (Excel)",
-    type=["xlsx", "xls"]
+    type=["xlsx","xls"],
+    key="excel_upload"
 )
 
 if uploaded_file is not None:
@@ -664,6 +659,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
