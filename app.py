@@ -26,12 +26,31 @@ st.set_page_config(layout="wide")
 # ======================================
 # SIDEBAR INPUT
 # ======================================
-st.sidebar.title("Input Parameter")
+st.sidebar.header("Input Parameter")
 
 section = st.sidebar.radio(
     "Select Section",
     ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
 )
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload data saham (Excel)",
+    type=["xlsx","xls"],
+    key="excel_upload"
+)
+
+# tombol load data
+if uploaded_file is not None:
+    if st.sidebar.button("Load Data"):
+        data = pd.read_excel(uploaded_file)
+
+        # pastikan kolom date
+        if "Date" in data.columns:
+            data["Date"] = pd.to_datetime(data["Date"])
+            data.set_index("Date", inplace=True)
+
+        st.session_state["data"] = data
+        st.sidebar.success("Data berhasil dimuat")
 
 # ======================================
 # LOAD DATA (Excel / Yahoo)
@@ -502,20 +521,17 @@ else:
     # SECTION 1 : INFORMASI DATA
     # =============================
     if section == "Informasi Data":
-        st.subheader(f"Pergerakan Harga Saham {ticker}")
+
+        if "data" not in st.session_state:
+            st.warning("Upload dan Load Data terlebih dahulu")
+        else:
+            data = st.session_state["data"]
     
-        chart_data = data.copy()
+            st.subheader("Pergerakan Harga Saham")
+            st.line_chart(data[["Close"]])
     
-        # pastikan hanya 1 kolom numeric
-        if isinstance(chart_data.columns, pd.MultiIndex):
-            chart_data.columns = chart_data.columns.get_level_values(0)
-    
-        chart_data = chart_data[['Close']]
-    
-        st.line_chart(chart_data)
-    
-        st.subheader("Statistik Deskriptif (Close)")
-        st.write(chart_data['Close'].describe())
+            st.subheader("Statistik Deskriptif")
+            st.write(data.describe())
 
 
     # =============================
@@ -648,6 +664,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
