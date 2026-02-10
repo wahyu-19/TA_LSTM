@@ -522,11 +522,15 @@ else:
     # SECTION 1 : INFORMASI DATA
     # =============================
     if section == "Informasi Data":
-        st.subheader(f"Pergerakan Harga Saham {ticker}")
-        st.line_chart(data['Close'])
+    st.subheader(f"Pergerakan Harga Saham {ticker}")
 
-        st.subheader("Statistik Deskriptif (Close)")
-        st.write(data['Close'].describe())
+    chart_data = data.copy()
+    chart_data.index = pd.to_datetime(chart_data.index)
+
+    st.line_chart(chart_data)
+
+    st.subheader("Statistik Deskriptif (Close)")
+    st.write(data['Close'].describe())
 
     # =============================
     # SECTION 2 : IN DEPTH ANALYSIS
@@ -658,6 +662,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
