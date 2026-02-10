@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import datetime
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -29,12 +28,17 @@ st.set_page_config(layout="wide")
 # ======================================
 st.sidebar.title("Input Parameter")
 
-ticker = st.sidebar.text_input("Ticker saham", "SIDO.JK")
+section = st.sidebar.radio(
+    "Select Section",
+    ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
+)
 
-start_date = st.sidebar.date_input("Start date")
-end_date   = st.sidebar.date_input("End date")
+st.sidebar.subheader("Sumber Data")
 
-section = st.sidebar.radio( "Select Section", ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"] )
+uploaded_file = st.sidebar.file_uploader(
+    "Upload data saham (Excel)",
+    type=["xlsx", "xls"]
+)
 
 # ======================================
 # LOAD DATA (Excel / Yahoo)
@@ -46,22 +50,6 @@ uploaded_file = st.sidebar.file_uploader(
     type=["xlsx", "xls"]
 )
 
-@st.cache_data(ttl=86400)
-def load_yahoo(ticker, start, end):
-    df = yf.download(
-        ticker,
-        start=start.strftime("%Y-%m-%d"),
-        end=end.strftime("%Y-%m-%d"),
-        progress=False
-    )
-
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-
-    df = df[['Close']].dropna()
-    return df
-
-
 if uploaded_file is not None:
     data = pd.read_excel(uploaded_file)
     data['Date'] = pd.to_datetime(data['Date'])
@@ -69,15 +57,10 @@ if uploaded_file is not None:
     data.set_index('Date', inplace=True)
     data = data[['Close']]
     st.sidebar.success("Data dari Excel")
-
 else:
-    data = load_yahoo(ticker, start_date, end_date)
-    if data.empty:
-        st.error("Data tidak ditemukan.")
-        st.stop()
-    st.sidebar.info("Data dari Yahoo Finance")
-
-
+    st.warning("Silakan upload file Excel terlebih dahulu.")
+    st.stop()
+    
 if data.empty:
     st.error("Data tidak ditemukan untuk ticker tersebut.")
 else:
@@ -675,6 +658,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
