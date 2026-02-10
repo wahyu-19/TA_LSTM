@@ -522,17 +522,17 @@ else:
     # SECTION 1 : INFORMASI DATA
     # =============================
     if section == "Informasi Data":
-    st.subheader(f"Pergerakan Harga Saham {ticker}")
-
-    chart_data = data.copy()
+        st.subheader(f"Pergerakan Harga Saham {ticker}")
     
-    # pastikan hanya 1 kolom numeric
-    if isinstance(chart_data.columns, pd.MultiIndex):
-        chart_data.columns = chart_data.columns.get_level_values(0)
+        chart_data = data.copy()
     
-    chart_data = chart_data[['Close']]
+        # pastikan hanya 1 kolom numeric
+        if isinstance(chart_data.columns, pd.MultiIndex):
+            chart_data.columns = chart_data.columns.get_level_values(0)
     
-    st.line_chart(chart_data)
+        chart_data = chart_data[['Close']]
+    
+        st.line_chart(chart_data)
 
 
     # =============================
@@ -665,6 +665,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
