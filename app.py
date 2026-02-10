@@ -61,28 +61,12 @@ section = st.sidebar.radio(
 # LOAD DATA
 # =============================
 @st.cache_resource(ttl=3600)
+@st.cache_data(ttl=3600)
 def load_data(ticker, start, end):
-    df = yf.download(
-        ticker,
-        start=start.strftime("%Y-%m-%d"),
-        end=end.strftime("%Y-%m-%d"),
-        progress=False,
-        auto_adjust=False
-    )
+    data = yf.download(ticker, start=start, end=end)
+    return data
 
-    if df.empty:
-        return pd.DataFrame()
-
-    # Jika MultiIndex kolom
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-
-    # Ambil hanya Close
-    df = df[['Close']].copy()
-
-    df.dropna(inplace=True)
-
-    return df
+data = load_data(ticker, start_date, end_date)
 
 # Load data
 data = load_data(ticker, start_date, end_date)
@@ -674,6 +658,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
