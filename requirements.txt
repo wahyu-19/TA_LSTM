@@ -4,8 +4,10 @@ pandas
 matplotlib
 scikit-learn
 tensorflow
+yfinance as yf
 openpyxl
 xlrd
 pyswarms
 geneticalgorithm
+
 
