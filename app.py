@@ -533,6 +533,9 @@ else:
         chart_data = chart_data[['Close']]
     
         st.line_chart(chart_data)
+    
+        st.subheader("Statistik Deskriptif (Close)")
+        st.write(chart_data['Close'].describe())
 
 
     # =============================
@@ -665,6 +668,7 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
 
 
