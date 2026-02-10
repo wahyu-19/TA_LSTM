@@ -24,52 +24,57 @@ random.seed(42)
 
 st.set_page_config(layout="wide")
 
-# =============================
+# ======================================
 # SIDEBAR INPUT
-# =============================
-st.sidebar.title("Stock Settings")
+# ======================================
+st.sidebar.title("Input Parameter")
 
-ticker_input = st.sidebar.text_input(
-    "Masukkan ticker saham (contoh: BBCA)",
-    "SIDO"
+ticker = st.sidebar.text_input("Ticker saham", "SIDO.JK")
+
+start_date = st.sidebar.date_input("Start date")
+end_date   = st.sidebar.date_input("End date")
+
+# ======================================
+# LOAD DATA (Excel / Yahoo)
+# ======================================
+st.sidebar.subheader("Sumber Data")
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload data saham (Excel)",
+    type=["xlsx", "xls"]
 )
 
-# otomatis tambah .JK jika belum ada
-if ".JK" not in ticker_input:
-    ticker = ticker_input.upper() + ".JK"
+@st.cache_data(ttl=86400)
+def load_yahoo(ticker, start, end):
+    df = yf.download(
+        ticker,
+        start=start.strftime("%Y-%m-%d"),
+        end=end.strftime("%Y-%m-%d"),
+        progress=False
+    )
+
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+
+    df = df[['Close']].dropna()
+    return df
+
+
+if uploaded_file is not None:
+    data = pd.read_excel(uploaded_file)
+    data['Date'] = pd.to_datetime(data['Date'])
+    data = data.sort_values('Date')
+    data.set_index('Date', inplace=True)
+    data = data[['Close']]
+    st.sidebar.success("Data dari Excel")
+
 else:
-    ticker = ticker_input.upper()
+    data = load_yahoo(ticker, start_date, end_date)
+    if data.empty:
+        st.error("Data tidak ditemukan.")
+        st.stop()
+    st.sidebar.info("Data dari Yahoo Finance")
 
-today = datetime.date.today()
-
-start_date = st.sidebar.date_input(
-    "Start Date",
-    datetime.date(2019,7,1)
-)
-
-end_date = st.sidebar.date_input(
-    "End Date",
-    datetime.date(2025,7,1)
-)
-
-section = st.sidebar.radio(
-    "Select Section",
-    ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
-)
-
-# =============================
-# LOAD DATA
-# =============================
-@st.cache_resource(ttl=3600)
-@st.cache_data(ttl=3600)
-def load_data(ticker, start, end):
-    data = yf.download(ticker, start=start, end=end)
-    return data
-
-data = load_data(ticker, start_date, end_date)
-
-# Load data
-data = load_data(ticker, start_date, end_date)
 
 if data.empty:
     st.error("Data tidak ditemukan untuk ticker tersebut.")
