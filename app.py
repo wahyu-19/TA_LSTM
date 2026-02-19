@@ -162,12 +162,6 @@ else:
         y_true, y_pred = np.array(y_true), np.array(y_pred)
         return np.mean(np.abs((y_true - y_pred) / (y_true + 1e-8))) * 100
 
-    def smape(y_true, y_pred):
-        y_true, y_pred = np.array(y_true), np.array(y_pred)
-        num = np.abs(y_pred - y_true)
-        den = (np.abs(y_true) + np.abs(y_pred)) / 2
-        return np.mean(num / (den + 1e-8)) * 100
-
     def set_seed(seed_value):
         np.random.seed(seed_value)
         tf.random.set_seed(seed_value)
@@ -198,12 +192,11 @@ else:
         y_pred_base = scaler_y.inverse_transform(y_pred_scaled_base).flatten()
         y_true_base = scaler_y.inverse_transform(y_test).flatten()
 
-        base_mape = mape(y_true_base, y_pred_base)
-        base_smape = smape(y_true_base, y_pred_base)
+        pso_mape = mape(y_true_final, y_pred_final)
 
-        return model_base, history_base, base_mape, base_smape, y_pred_base, y_true_base
+        return model_final, history_final, pso_mape, y_pred_final, y_true_final, history_gbest_cost
 
-    @st.cache_resource
+
     def train_pso():
 
         PSO_N_PARTICLES = 10
@@ -234,7 +227,7 @@ else:
     
                     try:
                         set_seed(42)
-                        K.clear_session()
+                        tf.keras.backend.clear_session()
     
                         model = build_lstm_model(
                             input_shape=(X_tr.shape[1], X_tr.shape[2]),
@@ -254,7 +247,7 @@ else:
                     except:
                         costs[i] = 1e12
 
-                    K.clear_session()
+                    tf.keras.backend.clear_session()
     
                 return costs
             return obj_fn
@@ -339,12 +332,9 @@ else:
         y_true_final = scaler_y.inverse_transform(y_test).flatten()
     
         pso_mape = mape(y_true_final, y_pred_final)
-        pso_smape = smape(y_true_final, y_pred_final)
-    
-        return model_final, history_final, pso_mape, pso_smape, y_pred_final, y_true_final, history_gbest_cost
 
+        return model_final, history_final, pso_mape, y_pred_final, y_true_final, history_gbest_cost
 
-    @st.cache_resource
     def train_ga():
         POP_SIZE = 10
         N_GENERATIONS = 10
@@ -368,9 +358,9 @@ else:
                 lr = float(indiv['lr'])
                 epochs_fixed = 10
                 set_seed(42)
-                K.clear_session()
+                tf.keras.backend.clear_session()
                 
-                model = build_lstm_model_ga(
+                model = build_lstm_model(
                     input_shape=(X_tr.shape[1], X_tr.shape[2]),
                     units=units,
                     dropout=dropout,
@@ -476,9 +466,8 @@ else:
         y_true_ga = scaler_y.inverse_transform(y_test).flatten()
 
         ga_mape = mape(y_true_ga, y_pred_ga)
-        ga_smape = smape(y_true_ga, y_pred_ga)
 
-        return final_model_ga, history_ga, ga_mape, ga_smape, y_pred_ga, y_true_ga, gbest_history_ga
+        return final_model_ga, history_ga, ga_mape, y_pred_ga, y_true_ga, gbest_history_ga
 
    
     # =========================================================
@@ -504,9 +493,9 @@ else:
             st.session_state.model_base, \
             st.session_state.history_base, \
             st.session_state.base_mape, \
-            st.session_state.base_smape, \
             st.session_state.y_pred_base, \
             st.session_state.y_true_base = train_baseline()
+
     
             progress_bar.progress(33)
     
@@ -515,7 +504,6 @@ else:
             st.session_state.model_pso, \
             st.session_state.history_pso, \
             st.session_state.pso_mape, \
-            st.session_state.pso_smape, \
             st.session_state.y_pred_pso, \
             st.session_state.y_true_pso, \
             st.session_state.pso_gbest = train_pso()
@@ -527,7 +515,6 @@ else:
             st.session_state.model_ga, \
             st.session_state.history_ga, \
             st.session_state.ga_mape, \
-            st.session_state.ga_smape, \
             st.session_state.y_pred_ga, \
             st.session_state.y_true_ga, \
             st.session_state.ga_gbest = train_ga()
@@ -621,11 +608,10 @@ else:
                     st.session_state.ga_mape
                 ]
             })
-    
+
             st.dataframe(results)
     
         
-
     # =========================================================
     # SECTION 3 : HASIL FORECAST
     # =========================================================
@@ -674,7 +660,6 @@ else:
             })
     
             st.dataframe(forecast_df)
-
 
 
 
