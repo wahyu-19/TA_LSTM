@@ -95,14 +95,16 @@ X_test = X_seq_all[train_end_idx:]
 y_test = y_seq_all[train_end_idx:]
 
 # Pemodelan
-def build_lstm_model(input_shape, units=16, batchdropout=0.01, lr=1e-3):
+def build_lstm_model(input_shape, units, dropout, lr):
     K.clear_session()
     model = Sequential()
     model.add(LSTM(units=units, input_shape=input_shape))
-    if dropout > 0:
+    if dropout is not None and dropout > 0:
         model.add(Dropout(dropout))
     model.add(Dense(1))
-    model.compile(optimizer=Adam(learning_rate=lr), loss='mse')
+    optimizer = Adam(learning_rate=lr)
+    model.compile(optimizer=optimizer, loss="mse")
+
     return model  
         
 def mape(y_true, y_pred):
@@ -121,14 +123,14 @@ def train_baseline():
     model = build_lstm_model(
         input_shape=(X_train.shape[1], X_train.shape[2]),
         units=16,
-        dropout=0.2,
+        dropout=0.5,
         lr=0.001
     )
 
     history = model.fit(
         X_train, y_train,
-        epochs=50,
-        batch_size=32,
+        epochs=100,
+        batch_size=64,
         validation_split=0.2,
         verbose=0
     )
@@ -598,6 +600,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
