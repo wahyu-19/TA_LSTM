@@ -283,183 +283,184 @@ def train_ga():
     return final_model_ga, history_ga, ga_mape, y_pred_ga, y_true_ga, gbest_history_ga
     
 def train_pso():
-        set_seed(42)
+    set_seed(42)
+
+    # =========================
+    # PARAMETER PSO (TA Friendly)
+    # =========================
+    PSO_N_PARTICLES = 10        
+    PSO_ITERS = 10            
+    PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
     
-        # =========================
-        # PARAMETER PSO (TA Friendly)
-        # =========================
-        PSO_N_PARTICLES = 10        
-        PSO_ITERS = 10            
-        PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
+    # Bound: [units, lr, batch, dropout]
+    PSO_BOUNDS = (
+        np.array([16, 0.0001, 16, 0.2]),   # lower bound
+        np.array([128, 0.01, 128, 0.5])    # upper bound (lebih realistis)
+    )
     
-        # Bound: [units, lr, batch, dropout]
-        PSO_BOUNDS = (
-            np.array([16, 0.0001, 16, 0.2]),   # lower bound
-            np.array([128, 0.01, 128, 0.5])    # upper bound (lebih realistis)
-        )
+    # =========================
+    # SPLIT VALIDASI UNTUK PSO
+    # =========================
+    val_frac = 0.2
+    n_samples = X_train.shape[0]
+    n_train_split = int(n_samples * (1 - val_frac))
     
-        # =========================
-        # SPLIT VALIDASI UNTUK PSO
-        # =========================
-        val_frac = 0.2
-        n_samples = X_train.shape[0]
-        n_train_split = int(n_samples * (1 - val_frac))
+    X_tr = X_train[:n_train_split]
+    y_tr = y_train[:n_train_split]
+    X_val = X_train[n_train_split:]
+    y_val = y_train[n_train_split:]
     
-        X_tr = X_train[:n_train_split]
-        y_tr = y_train[:n_train_split]
-        X_val = X_train[n_train_split:]
-        y_val = y_train[n_train_split:]
+    # =========================
+    # OBJECTIVE FUNCTION (PAKAI MAPE)
+    # =========================
+    def objective_function(particles):
+        n_particles = particles.shape[0]
+        costs = np.zeros(n_particles)
     
-        # =========================
-        # OBJECTIVE FUNCTION (PAKAI MAPE)
-        # =========================
-        def objective_function(particles):
-            n_particles = particles.shape[0]
-            costs = np.zeros(n_particles)
+        for i in range(n_particles):
+            try:
+                # Decode hyperparameter
+                units = int(np.clip(np.round(particles[i, 0]), 16, 128))
+                lr = float(np.clip(particles[i, 1], 0.0001, 0.01))
+                batch = int(np.clip(np.round(particles[i, 2]), 16, 128))
+                dropout = float(np.clip(particles[i, 3], 0.1, 0.5))
     
-            for i in range(n_particles):
-                try:
-                    # Decode hyperparameter
-                    units = int(np.clip(np.round(particles[i, 0]), 16, 128))
-                    lr = float(np.clip(particles[i, 1], 0.0001, 0.01))
-                    batch = int(np.clip(np.round(particles[i, 2]), 16, 128))
-                    dropout = float(np.clip(particles[i, 3], 0.1, 0.5))
+                # Epoch kecil untuk optimasi (SANGAT PENTING)
+                epochs_fitness = 30
     
-                    # Epoch kecil untuk optimasi (SANGAT PENTING)
-                    epochs_fitness = 30
-    
-                    set_seed(42)
-                    K.clear_session()
-    
-                    model = build_lstm_model(
-                        input_shape=(X_tr.shape[1], X_tr.shape[2]),
-                        units=units,
-                        dropout=dropout,
-                        lr=lr
-                    )
-    
-                    model.fit(
-                        X_tr, y_tr,
-                        epochs=epochs_fitness,
-                        batch_size=batch,
-                        verbose=0
-                    )
-    
-                    # Prediksi validation
-                    y_val_pred = model.predict(X_val, verbose=0)
-    
-                    # Inverse scaling (WAJIB untuk MAPE yang valid)
-                    y_val_pred_inv = scaler_y.inverse_transform(y_val_pred).flatten()
-                    y_val_true_inv = scaler_y.inverse_transform(y_val).flatten()
-    
-                    # FITNESS = MAPE (konsisten dengan evaluasi skripsi)
-                    cost = mape(y_val_true_inv, y_val_pred_inv)
-                    costs[i] = cost
-    
-                except Exception as e:
-                    print("PSO Error:", e)
-                    costs[i] = 1e10
-    
+                set_seed(42)
                 K.clear_session()
     
-            return costs
+                model = build_lstm_model(
+                    input_shape=(X_tr.shape[1], X_tr.shape[2]),
+                    units=units,
+                    dropout=dropout,
+                    lr=lr
+                )
     
-        # =========================
-        # INISIALISASI OPTIMIZER
-        # =========================
-        optimizer = GlobalBestPSO(
-            n_particles=PSO_N_PARTICLES,
-            dimensions=4,
-            options=PSO_OPTIONS,
-            bounds=PSO_BOUNDS
-        )
+                model.fit(
+                    X_tr, y_tr,
+                    epochs=epochs_fitness,
+                    batch_size=batch,
+                    verbose=0
+                )
     
-        # =========================
-        # RUN PSO ITERATION
-        # =========================
-        best_cost, best_pos = optimizer.optimize(
-            objective_function,
-            iters=PSO_ITERS,
-            verbose=False
-        )
+                # Prediksi validation
+                y_val_pred = model.predict(X_val, verbose=0)
     
-        # =========================
-        # AMBIL PARAMETER TERBAIK
-        # =========================
-        best_units = int(np.round(best_pos[0]))
-        best_lr = float(best_pos[1])
-        best_batch = int(np.round(best_pos[2]))
-        best_dropout = float(best_pos[3])
+                # Inverse scaling (WAJIB untuk MAPE yang valid)
+                y_val_pred_inv = scaler_y.inverse_transform(y_val_pred).flatten()
+                y_val_true_inv = scaler_y.inverse_transform(y_val).flatten()
     
-        # =========================
-        # TRAIN FINAL MODEL (EPOCH 100 - SESUAI METODOLOGI TA)
-        # =========================
-        set_seed(42)
-        K.clear_session()
+                # FITNESS = MAPE (konsisten dengan evaluasi skripsi)
+                cost = mape(y_val_true_inv, y_val_pred_inv)
+                costs[i] = cost
     
-        model_final = build_lstm_model(
-            input_shape=(X_train.shape[1], X_train.shape[2]),
-            units=best_units,
-            dropout=best_dropout,
-            lr=best_lr
-        )
+            except Exception as e:
+                print("PSO Error:", e)
+                costs[i] = 1e10
     
-        history_final = model_final.fit(
-            X_train, y_train,
-            epochs=100,            # FINAL TRAINING (boleh 100)
-            batch_size=best_batch,
-            validation_split=0.2,
-            verbose=0
-        )
+            K.clear_session()
     
-        # =========================
-        # EVALUASI TEST (MAPE)
-        # =========================
-        y_pred_scaled = model_final.predict(X_test, verbose=0)
+        return costs
     
-        y_pred = scaler_y.inverse_transform(y_pred_scaled).flatten()
-        y_true = scaler_y.inverse_transform(y_test).flatten()
+    # =========================
+    # INISIALISASI OPTIMIZER
+    # =========================
+    optimizer = GlobalBestPSO(
+        n_particles=PSO_N_PARTICLES,
+        dimensions=4,
+        options=PSO_OPTIONS,
+        bounds=PSO_BOUNDS
+    )
     
-        pso_mape = mape(y_true, y_pred)
-    
-        # history gbest untuk plot konvergensi (opsional)
-        gbest_history = optimizer.cost_history
-    
-        return model_final, history_final, pso_mape, y_pred, y_true, gbest_history
-    
-    # =========================================================
-    # SESSION STATE (agar tidak retrain saat pindah tab)
-    # =========================================================
-    if "trained" not in st.session_state:
-        st.session_state.trained = False
-    
-    # =========================================================
-    # BUTTON TRAIN MODEL
-    # =========================================================
-    st.sidebar.markdown("### Training Model")
+    # =========================
+    # RUN PSO ITERATION
+    # =========================
+    best_cost, best_pos = optimizer.optimize(
+        objective_function,
+        iters=PSO_ITERS,
+        verbose=False
+    )
 
-    if st.sidebar.button("Run Training Model"):
-        with st.spinner("Training Baseline & PSO..."):
-            (st.session_state.model_base,
-             st.session_state.history_base,
-             st.session_state.base_mape,
-             st.session_state.y_pred_base,
-             st.session_state.y_true_base) = train_baseline()
+    # =========================
+    # AMBIL PARAMETER TERBAIK
+    # =========================
+    best_units = int(np.round(best_pos[0]))
+    best_lr = float(best_pos[1])
+    best_batch = int(np.round(best_pos[2]))
+    best_dropout = float(best_pos[3])
+    
+    # =========================
+    # TRAIN FINAL MODEL (EPOCH 100 - SESUAI METODOLOGI TA)
+    # =========================
+    set_seed(42)
+    K.clear_session()
+    
+    model_final = build_lstm_model(
+        input_shape=(X_train.shape[1], X_train.shape[2]),
+        units=best_units,
+        dropout=best_dropout,
+        lr=best_lr
+    )
+    
+    history_final = model_final.fit(
+        X_train, y_train,
+        epochs=100,            # FINAL TRAINING (boleh 100)
+        batch_size=best_batch,
+        validation_split=0.2,
+        verbose=0
+    )
+    
+    # =========================
+    # EVALUASI TEST (MAPE)
+    # =========================
+    y_pred_scaled = model_final.predict(X_test, verbose=0)
+    
+    y_pred = scaler_y.inverse_transform(y_pred_scaled).flatten()
+    y_true = scaler_y.inverse_transform(y_test).flatten()
+    
+    pso_mape = mape(y_true, y_pred)
+    
+    # history gbest untuk plot konvergensi (opsional)
+    gbest_history = optimizer.cost_history
+    
+    return model_final, history_final, pso_mape, y_pred, y_true, gbest_history
+    
+# =========================================================
+# SESSION STATE (agar tidak retrain saat pindah tab)
+# =========================================================
+if "trained" not in st.session_state:
+    st.session_state.trained = False
+    
+# =========================================================
+# BUTTON TRAIN MODEL
+# =========================================================
+st.sidebar.markdown("### Training Model")
 
-            (st.session_state.model_ga,
-             st.session_state.history_ga,
-             st.session_state.ga_mape,
-             st.session_state.y_pred_ga,
-             st.session_state.y_true_ga) = train_ga()
+if st.sidebar.button("Run Training Model"):
+    with st.spinner("Training Baseline & PSO..."):
+        (st.session_state.model_base,
+         st.session_state.history_base,
+         st.session_state.base_mape,
+         st.session_state.y_pred_base,
+         st.session_state.y_true_base) = train_baseline()
+
+        (st.session_state.model_ga,
+         st.session_state.history_ga,
+         st.session_state.ga_mape,
+         st.session_state.y_pred_ga,
+         st.session_state.y_true_ga) = train_ga()
+
                 
-            (st.session_state.model_pso,
-             st.session_state.history_pso,
-             st.session_state.pso_mape,
-             st.session_state.y_pred_pso,
-             st.session_state.y_true_pso) = train_pso()
-    
-            st.session_state.trained = True
-            st.success("Training selesai!")
+        (st.session_state.model_pso,
+         st.session_state.history_pso,
+         st.session_state.pso_mape,
+         st.session_state.y_pred_pso,
+         st.session_state.y_true_pso) = train_pso()
+        
+        st.session_state.trained = True
+        st.success("Training selesai!")
                 
     # =============================
     # SECTION 1 : INFORMASI DATA
@@ -595,6 +596,7 @@ def train_pso():
             })
     
             st.dataframe(forecast_df)
+
 
 
 
