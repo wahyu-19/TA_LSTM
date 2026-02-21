@@ -63,7 +63,6 @@ df = load_excel(uploaded_file)
 feature_cols = ["Close"]
 target_col = "Close"
 window = 1
-
 data_features = df[feature_cols].values
 data_target = df[[target_col]].values
 
@@ -594,6 +593,7 @@ def train_baseline():
             })
     
             st.dataframe(forecast_df)
+
 
 
 
