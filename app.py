@@ -95,7 +95,7 @@ X_test = X_seq_all[train_end_idx:]
 y_test = y_seq_all[train_end_idx:]
 
 # Pemodelan
-def build_lstm_model(input_shape, units=16, dropout=0.01, lr=1e-3):
+def build_lstm_model(input_shape, units=16, batchdropout=0.01, lr=1e-3):
     K.clear_session()
     model = Sequential()
     model.add(LSTM(units=units, input_shape=input_shape))
@@ -162,9 +162,10 @@ def train_ga():
             batch = int(np.round(indiv['batch_size']))
             dropout = float(indiv['dropout'])
             lr = float(indiv['lr'])
-            epochs_fixed = 100
+            
             set_seed(42)
             K.clear_session()
+            
             model = build_lstm_model_ga(
                 units=units,
                 dropout=dropout,
@@ -173,7 +174,7 @@ def train_ga():
             )
             model.fit(
                 X_tr, y_tr,
-                epochs=epochs_fixed,
+                epochs=10,
                 batch_size=batch,
                 verbose=0
             )
@@ -185,6 +186,7 @@ def train_ga():
             mse_val = mean_squared_error(yv_true_orig, yv_pred_orig)
             tf.keras.backend.clear_session()
             return mse_val
+            
         except Exception as e:
             print(f"GA Eval Error: {e}")
             tf.keras.backend.clear_session()
@@ -465,7 +467,7 @@ if st.sidebar.button("Run Training Model"):
 # =============================
 # SECTION 1 : INFORMASI DATA
 # =============================
-if section == "Proses Data":
+if section == "Informasi Data":
     st.subheader("Data Saham (Close Price)")
     st.dataframe(df)
     
@@ -596,6 +598,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
