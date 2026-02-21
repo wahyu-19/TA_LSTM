@@ -30,7 +30,6 @@ st.set_page_config(layout="wide")
 st.sidebar.title("Stock Settings")
 
 ticker_input = st.sidebar.text_input(
-    "Masukkan ticker saham (contoh: BBCA)",
     "SIDO"
 )
 
@@ -682,3 +681,4 @@ else:
             })
  
             st.dataframe(forecast_df)
+
