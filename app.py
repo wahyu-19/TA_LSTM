@@ -1,18 +1,15 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import yfinance as yf
-import datetime
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import random
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.optimizers import Adam, RMSprop, Nadam
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import backend as K
 from datetime import timedelta
 import copy
 from pyswarms.single.global_best import GlobalBestPSO
@@ -27,73 +24,52 @@ st.set_page_config(layout="wide")
 # =============================
 # SIDEBAR INPUT
 # =============================
-st.sidebar.title("Stock Settings")
+st.sidebar.title("Input Data Saham (Excel)")
 
-ticker_input = st.sidebar.text_input(
-    "Masukkan ticker saham (contoh: BBCA)",
-    "SIDO"
-)
-
-# otomatis tambah .JK jika belum ada
-if ".JK" not in ticker_input:
-    ticker = ticker_input.upper() + ".JK"
-else:
-    ticker = ticker_input.upper()
-
-today = datetime.date.today()
-
-start_date = st.sidebar.date_input(
-    "Start Date",
-    datetime.date(2019,7,1)
-)
-
-end_date = st.sidebar.date_input(
-    "End Date",
-    datetime.date(2025,7,1)
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Excel (Kolom: Date & Close)",
+    type=["xlsx"]
 )
 
 section = st.sidebar.radio(
-    "Select Section",
-    ["Informasi Data", "In-Depth Analysis", "Hasil Forecast"]
+    "Menu",
+    ["Proses Data", "Training & Evaluasi", "Forecast"]
 )
 
 # =============================
 # LOAD DATA
 # =============================
-def load_data(ticker, start, end):
-    df = yf.download(
-        ticker,
-        start=start.strftime("%Y-%m-%d"),
-        end=end.strftime("%Y-%m-%d"),
-        progress=False,
-        auto_adjust=False
-    )
+def load_excel(file):
+    df = pd.read_excel(file)
 
-    if df.empty:
-        return pd.DataFrame()
+    # Standarisasi nama kolom
+    df.columns = [c.strip() for c in df.columns]
 
-    # Jika MultiIndex kolom
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
+    if "Date" not in df.columns or "Close" not in df.columns:
+        st.error("File harus memiliki kolom: Date dan Close")
+        st.stop()
 
-    # Ambil hanya Close
-    df = df[['Close']].copy()
-
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.sort_values("Date")
+    df = df[["Date", "Close"]]
     df.dropna(inplace=True)
 
     return df
 
-# Load data
-data = load_data(ticker, start_date, end_date)
+if uploaded_file is None:
+    st.warning("Silakan upload file Excel terlebih dahulu.")
+    st.stop()
 
-if data.empty:
-    st.error("Data tidak ditemukan untuk ticker tersebut.")
-else:
-    # =============================
-    # PREPROCESS DATA (seperti di kode Anda)
-    # =============================
-    df = data.copy()
-    df = df.reset_index()
+# Load data
+df_raw = load_excel(uploaded_file)
+
+df.columns = [c.strip() for c in df.columns]
+
+if "Date" not in df.columns or "Close" not in df.columns:
+    st.error("File harus memiliki kolom: Date dan Close")
+    st.stop()
+   
+    df = df.reset_index(drop=True)
     df['Date'] = pd.to_datetime(df['Date'])
     df = df.sort_values('Date')
     df.set_index('Date', inplace=True)
@@ -161,12 +137,6 @@ else:
         y_true, y_pred = np.array(y_true), np.array(y_pred)
         return np.mean(np.abs((y_true - y_pred) / (y_true + 1e-8))) * 100
 
-    def smape(y_true, y_pred):
-        y_true, y_pred = np.array(y_true), np.array(y_pred)
-        num = np.abs(y_pred - y_true)
-        den = (np.abs(y_true) + np.abs(y_pred)) / 2
-        return np.mean(num / (den + 1e-8)) * 100
-
     def set_seed(seed_value):
         np.random.seed(seed_value)
         tf.random.set_seed(seed_value)
@@ -197,9 +167,151 @@ else:
         y_true_base = scaler_y.inverse_transform(y_test).flatten()
 
         base_mape = mape(y_true_base, y_pred_base)
-        base_smape = smape(y_true_base, y_pred_base)
+        return model_base, history_base, base_mape, y_pred_base, y_true_base
 
-        return model_base, history_base, base_mape, base_smape, y_pred_base, y_true_base
+    def train_ga():
+        set_seed(42)
+        
+        POP_SIZE = 10
+        N_GENERATIONS = 10
+        MUTATION_RATE = 0.3
+        GA_LB = [16, 8, 0.1, 0.0001]
+        GA_UB = [160, 256, 1, 0.001]
+
+        def init_individual(lb, ub):
+            return {
+                'units': int(np.random.randint(lb[0], ub[0] + 1)),
+                'batch_size': int(np.random.randint(lb[1], ub[1] + 1)),
+                'dropout': float(np.random.uniform(lb[2], ub[2])),
+                'lr': float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
+            }
+
+        def fitness_ga(indiv, X_tr, y_tr, X_val, y_val, scaler_y):
+            try:
+                units = int(np.round(indiv['units']))
+                batch = int(np.round(indiv['batch_size']))
+                dropout = float(indiv['dropout'])
+                lr = float(indiv['lr'])
+                epochs_fixed = 100
+                # Tambahkan seed agar seimbang
+                set_seed(42)
+                K.clear_session()
+                model = build_lstm_model_ga(
+                    units=units,
+                    dropout=dropout,
+                    lr=lr,
+                    input_shape=(X_tr.shape[1], X_tr.shape[2])
+                )
+                model.fit(
+                    X_tr, y_tr,
+                    epochs=epochs_fixed,
+                    batch_size=batch,
+                    verbose=0
+                )
+                yv_pred = model.predict(X_val, verbose=0)
+                yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
+                yv_true_orig = scaler_y.inverse_transform(y_val).flatten()
+        
+                # Optimasi berdasarkan MSE
+                mse_val = mean_squared_error(yv_true_orig, yv_pred_orig)
+                tf.keras.backend.clear_session()
+                return mse_val
+            except Exception as e:
+                print(f"GA Eval Error: {e}")
+                tf.keras.backend.clear_session()
+                return 1e12
+
+        def crossover(p1, p2, alpha=0.25):
+            child = {}
+            for k in p1.keys():
+                val1 = p1[k]
+                val2 = p2[k]
+                lower = min(val1, val2) - alpha * abs(val1 - val2)
+                upper = max(val1, val2) + alpha * abs(val1 - val2)
+                new_val = np.random.uniform(lower, upper)
+                      
+                if k == 'units':
+                    child[k] = int(np.clip(np.round(new_val), GA_LB[0], GA_UB[0]))
+                elif k == 'batch_size':
+                    child[k] = int(np.clip(np.round(new_val), GA_LB[1], GA_UB[1]))
+                elif k == 'dropout':
+                    child[k] = float(np.clip(new_val, GA_LB[2], GA_UB[2]))
+                elif k == 'lr':
+                    child[k] = float(np.clip(new_val, GA_LB[3], GA_UB[3]))
+            return child
+        
+        def mutate(indiv, lb, ub, rate):
+            child = copy.deepcopy(indiv)
+            if np.random.rand() < rate:
+                child['units'] = int(np.random.randint(lb[0], ub[0] + 1))
+            if np.random.rand() < rate:
+                child['batch_size'] = int(np.random.randint(lb[1], ub[1] + 1))
+            if np.random.rand() < rate:
+                child['dropout'] = float(np.random.uniform(lb[2], ub[2]))
+            if np.random.rand() < rate:
+                child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
+            return child
+        
+        val_frac_for_ga = 0.2
+        n_tr_samples_ga = X_train.shape[0]
+        n_tr_val_ga = int(n_tr_samples_ga * (1 - val_frac_for_ga))
+        X_tr_for_ga = X_train[:n_tr_val_ga]
+        y_tr_for_ga = y_train[:n_tr_val_ga]
+        X_val_for_ga = X_train[n_tr_val_ga:]
+        y_val_for_ga = y_train[n_tr_val_ga:]
+
+        population = [init_individual(GA_LB, GA_UB) for _ in range(POP_SIZE)]
+        best_mse_ga = np.inf
+        best_params_ga = None
+        gbest_history_ga = []
+
+        for gen in range(N_GENERATIONS):
+            fitness_scores = [
+                fitness_ga(ind, X_tr_for_ga, y_tr_for_ga, X_val_for_ga, y_val_for_ga, scaler_y)
+                for ind in population
+            ]
+
+            order = np.argsort(fitness_scores)
+            population = [population[i] for i in order]
+            if fitness_scores[order[0]] < best_mse_ga:
+                best_mse_ga = fitness_scores[order[0]]
+                best_params_ga = population[0]
+            gbest_history_ga.append(best_mse_ga)
+            elites = population[:5]
+            offspring = []
+            while len(offspring) < POP_SIZE - len(elites):
+                p1, p2 = np.random.choice(elites, 2, replace=False)
+                child = crossover(p1, p2)
+                child = mutate(child, GA_LB, GA_UB, MUTATION_RATE)
+                offspring.append(child)
+            population = elites + offspring
+
+        best_units_ga = int(np.round(best_params_ga['units']))
+        best_lr_ga = float(best_params_ga['lr'])
+        best_batch_ga = int(np.round(best_params_ga['batch_size']))
+        best_dropout_ga = float(best_params_ga['dropout'])
+
+        set_seed(42)
+        final_model_ga = build_lstm_model_ga(
+            units=best_units_ga,
+            dropout=best_dropout_ga,
+            lr=best_lr_ga,
+            input_shape=(X_train.shape[1], X_train.shape[2])
+        )
+        history_ga = final_model_ga.fit(
+            X_train, y_train,
+            epochs=100,
+            batch_size=best_batch_ga,
+            validation_split=0.2,
+            verbose=1
+        )
+
+        y_pred_scaled_ga = final_model_ga.predict(X_test)
+        y_pred_ga = scaler_y.inverse_transform(y_pred_scaled_ga).flatten()
+        y_true_ga = scaler_y.inverse_transform(y_test).flatten()
+
+        ga_mape = mape(y_true_ga, y_pred_ga)
+        return final_model_ga, history_ga, ga_mape, y_pred_ga, y_true_ga, gbest_history_ga
 
     def train_pso():
         set_seed(42)
@@ -212,63 +324,69 @@ else:
         val_frac_for_pso = 0.2
         n_tr_samples = X_train.shape[0]
         n_tr_val = int(n_tr_samples * (1 - val_frac_for_pso))
-    
         X_tr_for_pso = X_train[:n_tr_val]
         y_tr_for_pso = y_train[:n_tr_val]
         X_val_for_pso = X_train[n_tr_val:]
         y_val_for_pso = y_train[n_tr_val:]
-    
+
         def make_pso_obj(X_tr, y_tr, X_va, y_va, scaler_y):
             def obj_fn(particles):
                 n_particles = particles.shape[0]
                 costs = np.zeros(n_particles)
-    
                 for i, p in enumerate(particles):
                     units = int(np.round(p[0]))
                     lr = float(p[1])
                     batch = int(np.round(p[2]))
                     dropout = float(p[3])
-    
+                    epochs_fixed = 100
                     try:
                         set_seed(42)
-                        tf.keras.backend.clear_session()
-    
+                        K.clear_session()
                         model = build_lstm_model(
                             input_shape=(X_tr.shape[1], X_tr.shape[2]),
                             units=units,
                             dropout=dropout,
                             lr=lr
                         )
-    
-                        model.fit(X_tr, y_tr, epochs=10, batch_size=batch, verbose=0)
-    
+                        model.fit(
+                            X_tr, y_tr,
+                            epochs=epochs_fixed,
+                            batch_size=batch,
+                            verbose=0
+                        )
                         yv_pred = model.predict(X_va, verbose=0)
                         yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
                         yv_true_orig = scaler_y.inverse_transform(y_va).flatten()
-    
                         costs[i] = mean_squared_error(yv_true_orig, yv_pred_orig)
-    
-                    except:
+                    except Exception as e:
+                        print("PSO eval error:", e)
                         costs[i] = 1e12
-    
+                    K.clear_session()
                 return costs
             return obj_fn
-    
-        pso_obj = make_pso_obj(X_tr_for_pso, y_tr_for_pso, X_val_for_pso, y_val_for_pso, scaler_y)
-    
+        pso_obj = make_pso_obj(
+            X_tr_for_pso, y_tr_for_pso,
+            X_val_for_pso, y_val_for_pso,
+            scaler_y
+        )
+
+        history_positions = []
+        history_velocity = []
+        history_costs = []
+        history_gbest_cost = []
+        history_gbest_pos = []
         optimizer = GlobalBestPSO(
             n_particles=PSO_N_PARTICLES,
             dimensions=4,
             options=PSO_OPTIONS,
             bounds=PSO_BOUNDS
         )
-    
+   
         # ===== INIT PBEST =====
-        optimizer.swarm.pbest_cost = np.full(PSO_N_PARTICLES, np.inf)
+        n_particles, dims = optimizer.swarm.position.shape
         optimizer.swarm.pbest_pos = optimizer.swarm.position.copy()
-        optimizer.swarm.best_cost = np.inf
-        optimizer.swarm.best_pos = optimizer.swarm.position[0].copy()
-    
+        optimizer.swarm.pbest_cost = np.full(n_particles, np.inf)
+          
         history_gbest_cost = []
         history_gbest_pos = []
     
@@ -278,15 +396,16 @@ else:
     
             mask = costs < optimizer.swarm.pbest_cost
             optimizer.swarm.pbest_cost[mask] = costs[mask]
-            optimizer.swarm.pbest_pos[mask] = optimizer.swarm.position[mask]
-    
+            optimizer.swarm.pbest_pos[mask] = optimizer.swarm.position[mask].copy()
             best_idx = np.argmin(optimizer.swarm.pbest_cost)
             optimizer.swarm.best_cost = optimizer.swarm.pbest_cost[best_idx]
-            optimizer.swarm.best_pos = optimizer.swarm.pbest_pos[best_idx]
-    
+            optimizer.swarm.best_pos = optimizer.swarm.pbest_pos[best_idx].copy()
+            history_positions.append(optimizer.swarm.position.copy())
+            history_velocity.append(optimizer.swarm.velocity.copy())
+            history_costs.append(costs.copy())
             history_gbest_cost.append(float(optimizer.swarm.best_cost))
             history_gbest_pos.append(optimizer.swarm.best_pos.copy())
-    
+
             r1 = np.random.rand(*optimizer.swarm.position.shape)
             r2 = np.random.rand(*optimizer.swarm.position.shape)
     
@@ -325,161 +444,12 @@ else:
             verbose=0
         )
     
-        y_pred_scaled_final = model_final.predict(X_test, verbose=0)
+        y_pred_scaled_final = model_final.predict(X_test)
         y_pred_final = scaler_y.inverse_transform(y_pred_scaled_final).flatten()
         y_true_final = scaler_y.inverse_transform(y_test).flatten()
-    
+ 
         pso_mape = mape(y_true_final, y_pred_final)
-        pso_smape = smape(y_true_final, y_pred_final)
-    
-        return model_final, history_final, pso_mape, pso_smape, y_pred_final, y_true_final, history_gbest_cost
-
-
-    def train_ga():
-        set_seed(42)
-        
-        POP_SIZE = 10
-        N_GENERATIONS = 10
-        MUTATION_RATE = 0.1
-        GA_LB = [16, 8, 0.1, 0.0001]
-        GA_UB = [160, 256, 1, 0.001]
-
-        def init_individual(lb, ub):
-            return {
-                'units': int(np.random.randint(lb[0], ub[0] + 1)),
-                'batch_size': int(np.random.randint(lb[1], ub[1] + 1)),
-                'dropout': float(np.random.uniform(lb[2], ub[2])),
-                'lr': float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
-            }
-
-        def fitness_ga(indiv, X_tr, y_tr, X_val, y_val, scaler_y):
-            try:
-                units = int(np.round(indiv['units']))
-                batch = int(np.round(indiv['batch_size']))
-                dropout = float(indiv['dropout'])
-                lr = float(indiv['lr'])
-                epochs_fixed = 10
-                set_seed(42)
-                tf.keras.backend.clear_session()
-                model = build_lstm_model(
-                    input_shape=(X_tr.shape[1], X_tr.shape[2]),
-                    units=units,
-                    dropout=dropout,
-                    lr=lr
-                )
-                model.fit(X_tr, y_tr, epochs=epochs_fixed, batch_size=batch, verbose=0)
-                yv_pred = model.predict(X_val, verbose=0)
-                yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
-                yv_true_orig = scaler_y.inverse_transform(y_val).flatten()
-                mse_val = mean_squared_error(yv_true_orig, yv_pred_orig)
-                tf.keras.backend.clear_session()
-                return mse_val
-            except:
-                tf.keras.backend.clear_session()
-                return 1e12
-
-        def mutate(indiv, lb, ub, rate):
-            child = copy.deepcopy(indiv)
-            if np.random.rand() < rate:
-                child['units'] = int(np.random.randint(lb[0], ub[0] + 1))
-            if np.random.rand() < rate:
-                child['batch_size'] = int(np.random.randint(lb[1], ub[1] + 1))
-            if np.random.rand() < rate:
-                child['dropout'] = float(np.random.uniform(lb[2], ub[2]))
-            if np.random.rand() < rate:
-                child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
-            return child
-        
-        def crossover(p1, p2, lb, ub, alpha=0.25):
-            child = {}
-            keys = list(p1.keys())
-        
-            for i, k in enumerate(keys):
-                val1 = p1[k]
-                val2 = p2[k]
-        
-                lower = min(val1, val2) - alpha * abs(val1 - val2)
-                upper = max(val1, val2) + alpha * abs(val1 - val2)
-        
-                new_val = np.random.uniform(lower, upper)
-        
-                # CLIPPING agar tidak keluar batas
-                new_val = np.clip(new_val, lb[i], ub[i])
-        
-                if k in ['units', 'batch_size']:
-                    child[k] = int(np.round(new_val))
-                else:
-                    child[k] = float(new_val)
-        
-            return child
-
-         
-        val_frac_for_ga = 0.2
-        n_tr_samples = X_train.shape[0]
-        n_tr_val = int(n_tr_samples * (1 - val_frac_for_ga))
-        X_tr_for_ga = X_train[:n_tr_val]
-        y_tr_for_ga = y_train[:n_tr_val]
-        X_val_for_ga = X_train[n_tr_val:]
-        y_val_for_ga = y_train[n_tr_val:]
-
-        population = [init_individual(GA_LB, GA_UB) for _ in range(POP_SIZE)]
-        best_mse_ga = np.inf
-        best_params_ga = None
-        gbest_history_ga = []
-
-        for gen in range(N_GENERATIONS):
-            fitness_scores = [
-                fitness_ga(ind, X_tr_for_ga, y_tr_for_ga, X_val_for_ga, y_val_for_ga, scaler_y)
-                for ind in population
-            ]
-
-            order = np.argsort(fitness_scores)
-            population = [population[i] for i in order]
-            if fitness_scores[order[0]] < best_mse_ga:
-                best_mse_ga = fitness_scores[order[0]]
-                best_params_ga = population[0]
-            gbest_history_ga.append(best_mse_ga)
-            elites = population[:5]
-            offspring = []
-            while len(offspring) < POP_SIZE - len(elites):
-                idx = np.random.choice(len(elites), 2, replace=False)
-                p1 = elites[idx[0]]
-                p2 = elites[idx[1]]
-                child = crossover(p1, p2, GA_LB, GA_UB)
-                child = mutate(child, GA_LB, GA_UB, MUTATION_RATE)
-                offspring.append(child)
-            population = elites + offspring
-
-        best_units_ga = int(np.round(best_params_ga['units']))
-        best_lr_ga = float(best_params_ga['lr'])
-        best_batch_ga = int(np.round(best_params_ga['batch_size']))
-        best_dropout_ga = float(best_params_ga['dropout'])
-
-        set_seed(42)
-        final_model_ga = build_lstm_model(
-            input_shape=(X_train.shape[1], X_train.shape[2]),
-            units=best_units_ga,
-            dropout=best_dropout_ga,
-            lr=best_lr_ga
-        )
-
-        history_ga = final_model_ga.fit(
-            X_train, y_train,
-            epochs=100,
-            batch_size=best_batch_ga,
-            validation_split=0.2,
-            verbose=0
-        )
-
-        y_pred_scaled_ga = final_model_ga.predict(X_test, verbose=0)
-        y_pred_ga = scaler_y.inverse_transform(y_pred_scaled_ga).flatten()
-        y_true_ga = scaler_y.inverse_transform(y_test).flatten()
-
-        ga_mape = mape(y_true_ga, y_pred_ga)
-        ga_smape = smape(y_true_ga, y_pred_ga)
-
-        return final_model_ga, history_ga, ga_mape, ga_smape, y_pred_ga, y_true_ga, gbest_history_ga
-
+        return model_final, history_final, pso_mape, y_pred_final, y_true_final, history_gbest_cost
    
     # =========================================================
     # SESSION STATE (agar tidak retrain saat pindah tab)
@@ -678,4 +648,5 @@ else:
             })
     
             st.dataframe(forecast_df)
+
 
