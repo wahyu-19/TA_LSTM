@@ -233,6 +233,18 @@ def train_ga():
     X_val_for_ga = X_train[n_tr_val_ga:]
     y_val_for_ga = y_train[n_tr_val_ga:]
 
+    # Membangun Model LSTM-GA
+    def build_lstm_model_ga(units, dropout, lr, input_shape):
+    
+        tf.keras.backend.clear_session()
+        model = Sequential()
+        model.add(LSTM(units=units, input_shape=input_shape))
+        if dropout > 0:
+            model.add(Dropout(dropout))
+        model.add(Dense(1, activation='linear'))
+        model.compile(optimizer=Adam(learning_rate=lr), loss='mse')
+        return model
+        
     population = [init_individual(GA_LB, GA_UB) for _ in range(POP_SIZE)]
     best_mse_ga = np.inf
     best_params_ga = None
@@ -600,6 +612,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
