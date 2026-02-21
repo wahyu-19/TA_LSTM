@@ -9,6 +9,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import backend as K
 from datetime import timedelta
 import copy
 from pyswarms.single.global_best import GlobalBestPSO
@@ -20,6 +21,13 @@ st.set_page_config(layout="wide")
 np.random.seed(42)
 tf.random.set_seed(42)
 random.seed(42)
+
+def set_seed(seed_value=42):
+    np.random.seed(seed_value)
+    tf.random.set_seed(seed_value)
+    random.seed(seed_value)
+
+set_seed(42)
 
 # =========================
 # SIDEBAR
@@ -505,4 +513,5 @@ elif section == "Forecast":
         ax3.set_title("Forecast")
         ax3.legend()
         st.pyplot(fig3, use_container_width=False)
+
 
