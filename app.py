@@ -41,8 +41,6 @@ section = st.sidebar.radio(
 # =============================
 def load_excel(file):
     df = pd.read_excel(file)
-
-    # Standarisasi nama kolom
     df.columns = [c.strip() for c in df.columns]
 
     if "Date" not in df.columns or "Close" not in df.columns:
@@ -51,9 +49,7 @@ def load_excel(file):
 
     df["Date"] = pd.to_datetime(df["Date"])
     df = df.sort_values("Date")
-    df = df[["Date", "Close"]]
-    df.dropna(inplace=True)
-
+    df = df[["Date", "Close"]].dropna().reset_index(drop=True)
     return df
 
 if uploaded_file is None:
@@ -61,121 +57,96 @@ if uploaded_file is None:
     st.stop()
 
 # Load data
-df_raw = load_excel(uploaded_file)
+df = load_excel(uploaded_file)
 
-df.columns = [c.strip() for c in df.columns]
+# Preprocessing
+feature_cols = ["Close"]
+target_col = "Close"
+window = 1
 
-if "Date" not in df.columns or "Close" not in df.columns:
-    st.error("File harus memiliki kolom: Date dan Close")
-    st.stop()
-   
-    df = df.reset_index(drop=True)
-    df['Date'] = pd.to_datetime(df['Date'])
-    df = df.sort_values('Date')
-    df.set_index('Date', inplace=True)
-    df = df[['Close']]
-    df = df.reset_index()
-    df.columns = ['Date', 'Close']
-    df.index = pd.to_datetime(df['Date'], format='%Y-%m-%d')
+data_features = df[feature_cols].values
+data_target = df[[target_col]].values
 
-    feature_cols = ["Close"]
-    target_col = "Close"
-    window = 1
+values = df[['Close']].values
+n = len(values)
+n_train = int(n * 0.8)
 
-    data_features = df[feature_cols].values
-    data_target = df[[target_col]].values
+train_values = values[:n_train]
+test_values = values[n_train:]
 
-    values = df[['Close']].values
-    n = len(values)
-    n_train = int(n * 0.8)
+scaler_X = MinMaxScaler().fit(data_features[:n_train])
+scaler_y = MinMaxScaler().fit(data_target[:n_train])
 
-    train_values = values[:n_train]
-    test_values = values[n_train:]
+Xs = scaler_X.transform(data_features)
+ys = scaler_y.transform(data_target)
 
-    # Normalisasi Data
-    scaler_X = MinMaxScaler().fit(data_features[:n_train])
-    scaler_y = MinMaxScaler().fit(data_target[:n_train])
+def make_sequences(X_scaled, y_scaled, window):
+    X_seq, y_seq = [], []
+    for i in range(window, len(X_scaled)):
+        X_seq.append(X_scaled[i-window:i])
+        y_seq.append(y_scaled[i])
+    return np.array(X_seq), np.array(y_seq)
 
-    Xs = scaler_X.transform(data_features)
-    ys = scaler_y.transform(data_target)
+X_seq_all, y_seq_all = make_sequences(Xs, ys, window=window)
 
-    # Lagged Data set
-    def make_sequences(X_scaled, y_scaled, window):
-        X_seq, y_seq = [], []
-        for i in range(window, len(X_scaled)):
-            X_seq.append(X_scaled[i-window:i])
-            y_seq.append(y_scaled[i])
-        return np.array(X_seq), np.array(y_seq)
+train_end_idx = n_train - window
+X_train = X_seq_all[:train_end_idx]
+y_train = y_seq_all[:train_end_idx]
+X_test = X_seq_all[train_end_idx:]
+y_test = y_seq_all[train_end_idx:]
 
-    X_seq_all, y_seq_all = make_sequences(Xs, ys, window=window)
+# Pemodelan
+def build_lstm_model(input_shape, units=16, dropout=0.01, lr=1e-3):
+    K.clear_session()
+    model = Sequential()
+    model.add(LSTM(units=units, input_shape=input_shape))
+    if dropout > 0:
+        model.add(Dropout(dropout))
+    model.add(Dense(1))
+    model.compile(optimizer=Adam(learning_rate=lr), loss='mse')
+    return model  
+        
+def mape(y_true, y_pred):
+    return np.mean(np.abs((y_true - y_pred) / (y_true + 1e-8))) * 100
 
-    train_end_idx = n_train - window
+def set_seed(seed=42):
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    random.seed(seed)
+    
+# =============================
+# BASELINE TRAIN
+# =============================
+def train_baseline():
+    set_seed(42)
+    model = build_lstm_model(
+        input_shape=(X_train.shape[1], X_train.shape[2]),
+        units=16,
+        dropout=0.2,
+        lr=0.001
+    )
 
-    X_train = X_seq_all[:train_end_idx]
-    y_train = y_seq_all[:train_end_idx]
+    history = model.fit(
+        X_train, y_train,
+        epochs=50,
+        batch_size=32,
+        validation_split=0.2,
+        verbose=0
+    )
 
-    X_test = X_seq_all[train_end_idx:]
-    y_test = y_seq_all[train_end_idx:]
+    y_pred_scaled = model.predict(X_test, verbose=0)
+    y_pred = scaler_y.inverse_transform(y_pred_scaled).flatten()
+    y_true = scaler_y.inverse_transform(y_test).flatten()
 
-    BASE_UNITS = 16
-    BASE_DROPOUT = 0.5
-    BASE_BATCH = 64
-    BASE_EPOCHS = 100
-    BASE_LR = 0.001
-
-    def build_lstm_model(input_shape, units=16, dropout=0.01, lr=1e-3):
-        tf.keras.backend.clear_session()
-        model = Sequential()
-        model.add(LSTM(units=units, input_shape=input_shape))
-        if dropout > 0:
-            model.add(Dropout(dropout))
-        model.add(Dense(1, activation='linear'))
-        model.compile(optimizer=Adam(learning_rate=lr), loss='mse')
-        return model
-
-    def mape(y_true, y_pred):
-        y_true, y_pred = np.array(y_true), np.array(y_pred)
-        return np.mean(np.abs((y_true - y_pred) / (y_true + 1e-8))) * 100
-
-    def set_seed(seed_value):
-        np.random.seed(seed_value)
-        tf.random.set_seed(seed_value)
-        random.seed(seed_value)
-
-    # =============================
-    # TRAIN MODELS (cached)
-    # =============================
-    def train_baseline():
-        set_seed(42)
-        model_base = build_lstm_model(
-            input_shape=(X_train.shape[1], X_train.shape[2]),
-            units=BASE_UNITS,
-            dropout=BASE_DROPOUT,
-            lr=BASE_LR
-        )
-
-        history_base = model_base.fit(
-            X_train, y_train,
-            epochs=BASE_EPOCHS,
-            batch_size=BASE_BATCH,
-            validation_split=0.2,
-            verbose=0
-        )
-
-        y_pred_scaled_base = model_base.predict(X_test, verbose=0)
-        y_pred_base = scaler_y.inverse_transform(y_pred_scaled_base).flatten()
-        y_true_base = scaler_y.inverse_transform(y_test).flatten()
-
-        base_mape = mape(y_true_base, y_pred_base)
-        return model_base, history_base, base_mape, y_pred_base, y_true_base
-
+    return model, history, mape(y_true, y_pred), y_pred, y_true
+    
     def train_ga():
         set_seed(42)
         
         POP_SIZE = 10
         N_GENERATIONS = 10
         MUTATION_RATE = 0.3
-        GA_LB = [16, 8, 0.1, 0.0001]
+        GA_LB = [16, 8, 0.2, 0.0001]
         GA_UB = [160, 256, 1, 0.001]
 
         def init_individual(lb, ub):
@@ -312,122 +283,121 @@ if "Date" not in df.columns or "Close" not in df.columns:
 
         ga_mape = mape(y_true_ga, y_pred_ga)
         return final_model_ga, history_ga, ga_mape, y_pred_ga, y_true_ga, gbest_history_ga
-
+    
     def train_pso():
         set_seed(42)
-
-        PSO_N_PARTICLES = 10
-        PSO_ITERS = 10
-        PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
-        PSO_BOUNDS = ([16, 0.0001, 8, 0.1], [160, 0.001, 256, 1])
     
-        val_frac_for_pso = 0.2
-        n_tr_samples = X_train.shape[0]
-        n_tr_val = int(n_tr_samples * (1 - val_frac_for_pso))
-        X_tr_for_pso = X_train[:n_tr_val]
-        y_tr_for_pso = y_train[:n_tr_val]
-        X_val_for_pso = X_train[n_tr_val:]
-        y_val_for_pso = y_train[n_tr_val:]
-
-        def make_pso_obj(X_tr, y_tr, X_va, y_va, scaler_y):
-            def obj_fn(particles):
-                n_particles = particles.shape[0]
-                costs = np.zeros(n_particles)
-                for i, p in enumerate(particles):
-                    units = int(np.round(p[0]))
-                    lr = float(p[1])
-                    batch = int(np.round(p[2]))
-                    dropout = float(p[3])
-                    epochs_fixed = 100
-                    try:
-                        set_seed(42)
-                        K.clear_session()
-                        model = build_lstm_model(
-                            input_shape=(X_tr.shape[1], X_tr.shape[2]),
-                            units=units,
-                            dropout=dropout,
-                            lr=lr
-                        )
-                        model.fit(
-                            X_tr, y_tr,
-                            epochs=epochs_fixed,
-                            batch_size=batch,
-                            verbose=0
-                        )
-                        yv_pred = model.predict(X_va, verbose=0)
-                        yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
-                        yv_true_orig = scaler_y.inverse_transform(y_va).flatten()
-                        costs[i] = mean_squared_error(yv_true_orig, yv_pred_orig)
-                    except Exception as e:
-                        print("PSO eval error:", e)
-                        costs[i] = 1e12
-                    K.clear_session()
-                return costs
-            return obj_fn
-        pso_obj = make_pso_obj(
-            X_tr_for_pso, y_tr_for_pso,
-            X_val_for_pso, y_val_for_pso,
-            scaler_y
+        # =========================
+        # PARAMETER PSO (TA Friendly)
+        # =========================
+        PSO_N_PARTICLES = 10        
+        PSO_ITERS = 10            
+        PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
+    
+        # Bound: [units, lr, batch, dropout]
+        PSO_BOUNDS = (
+            np.array([16, 0.0001, 16, 0.2]),   # lower bound
+            np.array([128, 0.01, 128, 0.5])    # upper bound (lebih realistis)
         )
-
-        history_positions = []
-        history_velocity = []
-        history_costs = []
-        history_gbest_cost = []
-        history_gbest_pos = []
+    
+        # =========================
+        # SPLIT VALIDASI UNTUK PSO
+        # =========================
+        val_frac = 0.2
+        n_samples = X_train.shape[0]
+        n_train_split = int(n_samples * (1 - val_frac))
+    
+        X_tr = X_train[:n_train_split]
+        y_tr = y_train[:n_train_split]
+        X_val = X_train[n_train_split:]
+        y_val = y_train[n_train_split:]
+    
+        # =========================
+        # OBJECTIVE FUNCTION (PAKAI MAPE)
+        # =========================
+        def objective_function(particles):
+            n_particles = particles.shape[0]
+            costs = np.zeros(n_particles)
+    
+            for i in range(n_particles):
+                try:
+                    # Decode hyperparameter
+                    units = int(np.clip(np.round(particles[i, 0]), 16, 128))
+                    lr = float(np.clip(particles[i, 1], 0.0001, 0.01))
+                    batch = int(np.clip(np.round(particles[i, 2]), 16, 128))
+                    dropout = float(np.clip(particles[i, 3], 0.1, 0.5))
+    
+                    # Epoch kecil untuk optimasi (SANGAT PENTING)
+                    epochs_fitness = 30
+    
+                    set_seed(42)
+                    K.clear_session()
+    
+                    model = build_lstm_model(
+                        input_shape=(X_tr.shape[1], X_tr.shape[2]),
+                        units=units,
+                        dropout=dropout,
+                        lr=lr
+                    )
+    
+                    model.fit(
+                        X_tr, y_tr,
+                        epochs=epochs_fitness,
+                        batch_size=batch,
+                        verbose=0
+                    )
+    
+                    # Prediksi validation
+                    y_val_pred = model.predict(X_val, verbose=0)
+    
+                    # Inverse scaling (WAJIB untuk MAPE yang valid)
+                    y_val_pred_inv = scaler_y.inverse_transform(y_val_pred).flatten()
+                    y_val_true_inv = scaler_y.inverse_transform(y_val).flatten()
+    
+                    # FITNESS = MAPE (konsisten dengan evaluasi skripsi)
+                    cost = mape(y_val_true_inv, y_val_pred_inv)
+                    costs[i] = cost
+    
+                except Exception as e:
+                    print("PSO Error:", e)
+                    costs[i] = 1e10
+    
+                K.clear_session()
+    
+            return costs
+    
+        # =========================
+        # INISIALISASI OPTIMIZER
+        # =========================
         optimizer = GlobalBestPSO(
             n_particles=PSO_N_PARTICLES,
             dimensions=4,
             options=PSO_OPTIONS,
             bounds=PSO_BOUNDS
         )
-   
-        # ===== INIT PBEST =====
-        n_particles, dims = optimizer.swarm.position.shape
-        optimizer.swarm.pbest_pos = optimizer.swarm.position.copy()
-        optimizer.swarm.pbest_cost = np.full(n_particles, np.inf)
-          
-        history_gbest_cost = []
-        history_gbest_pos = []
     
-        for it in range(PSO_ITERS):
+        # =========================
+        # RUN PSO ITERATION
+        # =========================
+        best_cost, best_pos = optimizer.optimize(
+            objective_function,
+            iters=PSO_ITERS,
+            verbose=False
+        )
     
-            costs = pso_obj(optimizer.swarm.position)
-    
-            mask = costs < optimizer.swarm.pbest_cost
-            optimizer.swarm.pbest_cost[mask] = costs[mask]
-            optimizer.swarm.pbest_pos[mask] = optimizer.swarm.position[mask].copy()
-            best_idx = np.argmin(optimizer.swarm.pbest_cost)
-            optimizer.swarm.best_cost = optimizer.swarm.pbest_cost[best_idx]
-            optimizer.swarm.best_pos = optimizer.swarm.pbest_pos[best_idx].copy()
-            history_positions.append(optimizer.swarm.position.copy())
-            history_velocity.append(optimizer.swarm.velocity.copy())
-            history_costs.append(costs.copy())
-            history_gbest_cost.append(float(optimizer.swarm.best_cost))
-            history_gbest_pos.append(optimizer.swarm.best_pos.copy())
-
-            r1 = np.random.rand(*optimizer.swarm.position.shape)
-            r2 = np.random.rand(*optimizer.swarm.position.shape)
-    
-            optimizer.swarm.velocity = (
-                PSO_OPTIONS['w'] * optimizer.swarm.velocity
-                + PSO_OPTIONS['c1'] * r1 * (optimizer.swarm.pbest_pos - optimizer.swarm.position)
-                + PSO_OPTIONS['c2'] * r2 * (optimizer.swarm.best_pos - optimizer.swarm.position)
-            )
-    
-            optimizer.swarm.position += optimizer.swarm.velocity
-    
-            lb, ub = np.array(PSO_BOUNDS[0]), np.array(PSO_BOUNDS[1])
-            optimizer.swarm.position = np.clip(optimizer.swarm.position, lb, ub)
-    
-        best_pos = history_gbest_pos[-1]
-    
+        # =========================
+        # AMBIL PARAMETER TERBAIK
+        # =========================
         best_units = int(np.round(best_pos[0]))
         best_lr = float(best_pos[1])
         best_batch = int(np.round(best_pos[2]))
         best_dropout = float(best_pos[3])
     
+        # =========================
+        # TRAIN FINAL MODEL (EPOCH 100 - SESUAI METODOLOGI TA)
+        # =========================
         set_seed(42)
+        K.clear_session()
     
         model_final = build_lstm_model(
             input_shape=(X_train.shape[1], X_train.shape[2]),
@@ -438,19 +408,27 @@ if "Date" not in df.columns or "Close" not in df.columns:
     
         history_final = model_final.fit(
             X_train, y_train,
-            epochs=100,
+            epochs=100,            # FINAL TRAINING (boleh 100)
             batch_size=best_batch,
             validation_split=0.2,
             verbose=0
         )
     
-        y_pred_scaled_final = model_final.predict(X_test)
-        y_pred_final = scaler_y.inverse_transform(y_pred_scaled_final).flatten()
-        y_true_final = scaler_y.inverse_transform(y_test).flatten()
- 
-        pso_mape = mape(y_true_final, y_pred_final)
-        return model_final, history_final, pso_mape, y_pred_final, y_true_final, history_gbest_cost
-   
+        # =========================
+        # EVALUASI TEST (MAPE)
+        # =========================
+        y_pred_scaled = model_final.predict(X_test, verbose=0)
+    
+        y_pred = scaler_y.inverse_transform(y_pred_scaled).flatten()
+        y_true = scaler_y.inverse_transform(y_test).flatten()
+    
+        pso_mape = mape(y_true, y_pred)
+    
+        # history gbest untuk plot konvergensi (opsional)
+        gbest_history = optimizer.cost_history
+    
+        return model_final, history_final, pso_mape, y_pred, y_true, gbest_history
+    
     # =========================================================
     # SESSION STATE (agar tidak retrain saat pindah tab)
     # =========================================================
@@ -463,51 +441,27 @@ if "Date" not in df.columns or "Close" not in df.columns:
     st.sidebar.markdown("### Training Model")
 
     if st.sidebar.button("Run Training Model"):
+        with st.spinner("Training Baseline & PSO..."):
+            (st.session_state.model_base,
+             st.session_state.history_base,
+             st.session_state.base_mape,
+             st.session_state.y_pred_base,
+             st.session_state.y_true_base) = train_baseline()
+
+            (st.session_state.model_ga,
+             st.session_state.history_ga,
+             st.session_state.ga_mape,
+             st.session_state.y_pred_ga,
+             st.session_state.y_true_ga) = train_pso()
+                
+            (st.session_state.model_pso,
+             st.session_state.history_pso,
+             st.session_state.pso_mape,
+             st.session_state.y_pred_pso,
+             st.session_state.y_true_pso) = train_pso()
     
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-    
-        with st.spinner("Training models..."):
-    
-            # ================= BASELINE =================
-            status_text.write("Training Baseline LSTM...")
-            st.session_state.model_base, \
-            st.session_state.history_base, \
-            st.session_state.base_mape, \
-            st.session_state.base_smape, \
-            st.session_state.y_pred_base, \
-            st.session_state.y_true_base = train_baseline()
-    
-            progress_bar.progress(33)
-    
-            # ================= PSO =================
-            status_text.write("Training PSO-Optimized LSTM...")
-            st.session_state.model_pso, \
-            st.session_state.history_pso, \
-            st.session_state.pso_mape, \
-            st.session_state.pso_smape, \
-            st.session_state.y_pred_pso, \
-            st.session_state.y_true_pso, \
-            st.session_state.pso_gbest = train_pso()
-    
-            progress_bar.progress(66)
-    
-            # ================= GA =================
-            status_text.write("Training GA-Optimized LSTM...")
-            st.session_state.model_ga, \
-            st.session_state.history_ga, \
-            st.session_state.ga_mape, \
-            st.session_state.ga_smape, \
-            st.session_state.y_pred_ga, \
-            st.session_state.y_true_ga, \
-            st.session_state.ga_gbest = train_ga()
-    
-            progress_bar.progress(100)
-    
-            status_text.write("Training selesai.")
             st.session_state.trained = True
-    
-        st.success("Semua model berhasil dilatih.")
+            st.success("Training selesai!")
                 
     # =============================
     # SECTION 1 : INFORMASI DATA
@@ -603,15 +557,11 @@ if "Date" not in df.columns or "Close" not in df.columns:
     # =========================================================
     # SECTION 3 : HASIL FORECAST
     # =========================================================
-    elif section == "Hasil Forecast":
-
+    elif section == "Forecast":
         if not st.session_state.trained:
-            st.warning("Klik 'Run Training Model' terlebih dahulu.")
+            st.warning("Klik Run Training Model terlebih dahulu.")
         else:
-    
-            st.subheader("Forecast Future")
-    
-            future_days = st.slider("Forecast horizon (hari)", 5, 30, 7)
+            future_days = st.slider("Forecast (hari)", 5, 30, 7)
     
             last_window = X_test[-1].copy()
             future_preds = []
@@ -619,23 +569,19 @@ if "Date" not in df.columns or "Close" not in df.columns:
             model = st.session_state.model_base
     
             for _ in range(future_days):
-                pred = model.predict(last_window.reshape(1, last_window.shape[0], last_window.shape[1]), verbose=0)
+                pred = model.predict(last_window.reshape(1,1,1), verbose=0)
                 future_preds.append(pred[0,0])
-    
-                last_window = np.roll(last_window, -1)
-                last_window[-1] = pred[0,0]
+                last_window = pred.reshape(1,1)
     
             future_preds = scaler_y.inverse_transform(np.array(future_preds).reshape(-1,1)).flatten()
     
             # ===============================
             # Grafik forecast
             # ===============================
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(6,3))
             ax.plot(future_preds, label="Forecast")
-            ax.set_title("Future Forecast")
             ax.legend()
-            st.pyplot(fig, use_container_width=True)
-
+            st.pyplot(fig)
     
             # ===============================
             # tabel forecast
@@ -648,5 +594,6 @@ if "Date" not in df.columns or "Close" not in df.columns:
             })
     
             st.dataframe(forecast_df)
+
 
 
