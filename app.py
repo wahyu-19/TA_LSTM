@@ -33,7 +33,7 @@ uploaded_file = st.sidebar.file_uploader(
 
 section = st.sidebar.radio(
     "Menu",
-    ["Proses Data", "Training & Evaluasi", "Forecast"]
+    ["Informasi Data", "Training & Evaluasi", "Forecast"]
 )
 
 # =============================
@@ -139,151 +139,150 @@ def train_baseline():
 
     return model, history, mape(y_true, y_pred), y_pred, y_true
     
-    def train_ga():
-        set_seed(42)
+def train_ga():
+    set_seed(42)
         
-        POP_SIZE = 10
-        N_GENERATIONS = 10
-        MUTATION_RATE = 0.3
-        GA_LB = [16, 8, 0.2, 0.0001]
-        GA_UB = [160, 256, 1, 0.001]
+    POP_SIZE = 10
+    N_GENERATIONS = 10
+    MUTATION_RATE = 0.3
+    GA_LB = [16, 8, 0.2, 0.0001]
+    GA_UB = [160, 256, 1, 0.001]
 
-        def init_individual(lb, ub):
-            return {
-                'units': int(np.random.randint(lb[0], ub[0] + 1)),
-                'batch_size': int(np.random.randint(lb[1], ub[1] + 1)),
-                'dropout': float(np.random.uniform(lb[2], ub[2])),
-                'lr': float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
-            }
+    def init_individual(lb, ub):
+        return {
+            'units': int(np.random.randint(lb[0], ub[0] + 1)),
+            'batch_size': int(np.random.randint(lb[1], ub[1] + 1)),
+            'dropout': float(np.random.uniform(lb[2], ub[2])),
+            'lr': float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
+          }
 
-        def fitness_ga(indiv, X_tr, y_tr, X_val, y_val, scaler_y):
-            try:
-                units = int(np.round(indiv['units']))
-                batch = int(np.round(indiv['batch_size']))
-                dropout = float(indiv['dropout'])
-                lr = float(indiv['lr'])
-                epochs_fixed = 100
-                # Tambahkan seed agar seimbang
-                set_seed(42)
-                K.clear_session()
-                model = build_lstm_model_ga(
-                    units=units,
-                    dropout=dropout,
-                    lr=lr,
-                    input_shape=(X_tr.shape[1], X_tr.shape[2])
-                )
-                model.fit(
-                    X_tr, y_tr,
-                    epochs=epochs_fixed,
-                    batch_size=batch,
-                    verbose=0
-                )
-                yv_pred = model.predict(X_val, verbose=0)
-                yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
-                yv_true_orig = scaler_y.inverse_transform(y_val).flatten()
+    def fitness_ga(indiv, X_tr, y_tr, X_val, y_val, scaler_y):
+        try:
+            units = int(np.round(indiv['units']))
+            batch = int(np.round(indiv['batch_size']))
+            dropout = float(indiv['dropout'])
+            lr = float(indiv['lr'])
+            epochs_fixed = 100
+            set_seed(42)
+            K.clear_session()
+            model = build_lstm_model_ga(
+                units=units,
+                dropout=dropout,
+                lr=lr,
+                input_shape=(X_tr.shape[1], X_tr.shape[2])
+            )
+            model.fit(
+                X_tr, y_tr,
+                epochs=epochs_fixed,
+                batch_size=batch,
+                verbose=0
+            )
+            yv_pred = model.predict(X_val, verbose=0)
+            yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
+            yv_true_orig = scaler_y.inverse_transform(y_val).flatten()
         
-                # Optimasi berdasarkan MSE
-                mse_val = mean_squared_error(yv_true_orig, yv_pred_orig)
-                tf.keras.backend.clear_session()
-                return mse_val
-            except Exception as e:
-                print(f"GA Eval Error: {e}")
-                tf.keras.backend.clear_session()
-                return 1e12
+            # Optimasi berdasarkan MSE
+            mse_val = mean_squared_error(yv_true_orig, yv_pred_orig)
+            tf.keras.backend.clear_session()
+            return mse_val
+        except Exception as e:
+            print(f"GA Eval Error: {e}")
+            tf.keras.backend.clear_session()
+            return 1e12
 
-        def crossover(p1, p2, alpha=0.25):
-            child = {}
-            for k in p1.keys():
-                val1 = p1[k]
-                val2 = p2[k]
-                lower = min(val1, val2) - alpha * abs(val1 - val2)
-                upper = max(val1, val2) + alpha * abs(val1 - val2)
-                new_val = np.random.uniform(lower, upper)
+    def crossover(p1, p2, alpha=0.25):
+        child = {}
+        for k in p1.keys():
+            val1 = p1[k]
+            val2 = p2[k]
+            lower = min(val1, val2) - alpha * abs(val1 - val2)
+            upper = max(val1, val2) + alpha * abs(val1 - val2)
+            new_val = np.random.uniform(lower, upper)
                       
-                if k == 'units':
-                    child[k] = int(np.clip(np.round(new_val), GA_LB[0], GA_UB[0]))
-                elif k == 'batch_size':
-                    child[k] = int(np.clip(np.round(new_val), GA_LB[1], GA_UB[1]))
-                elif k == 'dropout':
-                    child[k] = float(np.clip(new_val, GA_LB[2], GA_UB[2]))
-                elif k == 'lr':
-                    child[k] = float(np.clip(new_val, GA_LB[3], GA_UB[3]))
-            return child
+            if k == 'units':
+                child[k] = int(np.clip(np.round(new_val), GA_LB[0], GA_UB[0]))
+            elif k == 'batch_size':
+                child[k] = int(np.clip(np.round(new_val), GA_LB[1], GA_UB[1]))
+            elif k == 'dropout':
+                child[k] = float(np.clip(new_val, GA_LB[2], GA_UB[2]))
+            elif k == 'lr':
+                child[k] = float(np.clip(new_val, GA_LB[3], GA_UB[3]))
+        return child
         
-        def mutate(indiv, lb, ub, rate):
-            child = copy.deepcopy(indiv)
-            if np.random.rand() < rate:
-                child['units'] = int(np.random.randint(lb[0], ub[0] + 1))
-            if np.random.rand() < rate:
-                child['batch_size'] = int(np.random.randint(lb[1], ub[1] + 1))
-            if np.random.rand() < rate:
-                child['dropout'] = float(np.random.uniform(lb[2], ub[2]))
-            if np.random.rand() < rate:
-                child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
-            return child
+    def mutate(indiv, lb, ub, rate):
+        child = copy.deepcopy(indiv)
+        if np.random.rand() < rate:
+            child['units'] = int(np.random.randint(lb[0], ub[0] + 1))
+        if np.random.rand() < rate:
+            child['batch_size'] = int(np.random.randint(lb[1], ub[1] + 1))
+        if np.random.rand() < rate:
+            child['dropout'] = float(np.random.uniform(lb[2], ub[2]))
+        if np.random.rand() < rate:
+            child['lr'] = float(10 ** np.random.uniform(np.log10(lb[3]), np.log10(ub[3])))
+        return child
         
-        val_frac_for_ga = 0.2
-        n_tr_samples_ga = X_train.shape[0]
-        n_tr_val_ga = int(n_tr_samples_ga * (1 - val_frac_for_ga))
-        X_tr_for_ga = X_train[:n_tr_val_ga]
-        y_tr_for_ga = y_train[:n_tr_val_ga]
-        X_val_for_ga = X_train[n_tr_val_ga:]
-        y_val_for_ga = y_train[n_tr_val_ga:]
+    val_frac_for_ga = 0.2
+    n_tr_samples_ga = X_train.shape[0]
+    n_tr_val_ga = int(n_tr_samples_ga * (1 - val_frac_for_ga))
+    X_tr_for_ga = X_train[:n_tr_val_ga]
+    y_tr_for_ga = y_train[:n_tr_val_ga]
+    X_val_for_ga = X_train[n_tr_val_ga:]
+    y_val_for_ga = y_train[n_tr_val_ga:]
 
-        population = [init_individual(GA_LB, GA_UB) for _ in range(POP_SIZE)]
-        best_mse_ga = np.inf
-        best_params_ga = None
-        gbest_history_ga = []
+    population = [init_individual(GA_LB, GA_UB) for _ in range(POP_SIZE)]
+    best_mse_ga = np.inf
+    best_params_ga = None
+    gbest_history_ga = []
 
-        for gen in range(N_GENERATIONS):
-            fitness_scores = [
-                fitness_ga(ind, X_tr_for_ga, y_tr_for_ga, X_val_for_ga, y_val_for_ga, scaler_y)
-                for ind in population
-            ]
+    for gen in range(N_GENERATIONS):
+        fitness_scores = [
+            fitness_ga(ind, X_tr_for_ga, y_tr_for_ga, X_val_for_ga, y_val_for_ga, scaler_y)
+            for ind in population
+        ]
 
-            order = np.argsort(fitness_scores)
-            population = [population[i] for i in order]
-            if fitness_scores[order[0]] < best_mse_ga:
-                best_mse_ga = fitness_scores[order[0]]
-                best_params_ga = population[0]
-            gbest_history_ga.append(best_mse_ga)
-            elites = population[:5]
-            offspring = []
-            while len(offspring) < POP_SIZE - len(elites):
-                p1, p2 = np.random.choice(elites, 2, replace=False)
-                child = crossover(p1, p2)
-                child = mutate(child, GA_LB, GA_UB, MUTATION_RATE)
-                offspring.append(child)
-            population = elites + offspring
+        order = np.argsort(fitness_scores)
+        population = [population[i] for i in order]
+        if fitness_scores[order[0]] < best_mse_ga:
+            best_mse_ga = fitness_scores[order[0]]
+            best_params_ga = population[0]
+        gbest_history_ga.append(best_mse_ga)
+        elites = population[:5]
+        offspring = []
+        while len(offspring) < POP_SIZE - len(elites):
+            p1, p2 = np.random.choice(elites, 2, replace=False)
+            child = crossover(p1, p2)
+            child = mutate(child, GA_LB, GA_UB, MUTATION_RATE)
+            offspring.append(child)
+        population = elites + offspring
 
-        best_units_ga = int(np.round(best_params_ga['units']))
-        best_lr_ga = float(best_params_ga['lr'])
-        best_batch_ga = int(np.round(best_params_ga['batch_size']))
-        best_dropout_ga = float(best_params_ga['dropout'])
+    best_units_ga = int(np.round(best_params_ga['units']))
+    best_lr_ga = float(best_params_ga['lr'])
+    best_batch_ga = int(np.round(best_params_ga['batch_size']))
+    best_dropout_ga = float(best_params_ga['dropout'])
 
-        set_seed(42)
-        final_model_ga = build_lstm_model_ga(
-            units=best_units_ga,
-            dropout=best_dropout_ga,
-            lr=best_lr_ga,
-            input_shape=(X_train.shape[1], X_train.shape[2])
-        )
-        history_ga = final_model_ga.fit(
-            X_train, y_train,
-            epochs=100,
-            batch_size=best_batch_ga,
-            validation_split=0.2,
-            verbose=1
-        )
+    set_seed(42)
+    final_model_ga = build_lstm_model_ga(
+        units=best_units_ga,
+        dropout=best_dropout_ga,
+        lr=best_lr_ga,
+        input_shape=(X_train.shape[1], X_train.shape[2])
+    )
+    history_ga = final_model_ga.fit(
+        X_train, y_train,
+        epochs=100,
+        batch_size=best_batch_ga,
+        validation_split=0.2,
+        verbose=1
+    )
 
-        y_pred_scaled_ga = final_model_ga.predict(X_test)
-        y_pred_ga = scaler_y.inverse_transform(y_pred_scaled_ga).flatten()
-        y_true_ga = scaler_y.inverse_transform(y_test).flatten()
+    y_pred_scaled_ga = final_model_ga.predict(X_test)
+    y_pred_ga = scaler_y.inverse_transform(y_pred_scaled_ga).flatten()
+    y_true_ga = scaler_y.inverse_transform(y_test).flatten()
 
-        ga_mape = mape(y_true_ga, y_pred_ga)
-        return final_model_ga, history_ga, ga_mape, y_pred_ga, y_true_ga, gbest_history_ga
+    ga_mape = mape(y_true_ga, y_pred_ga)
+    return final_model_ga, history_ga, ga_mape, y_pred_ga, y_true_ga, gbest_history_ga
     
-    def train_pso():
+def train_pso():
         set_seed(42)
     
         # =========================
@@ -451,7 +450,7 @@ def train_baseline():
              st.session_state.history_ga,
              st.session_state.ga_mape,
              st.session_state.y_pred_ga,
-             st.session_state.y_true_ga) = train_pso()
+             st.session_state.y_true_ga) = train_ga()
                 
             (st.session_state.model_pso,
              st.session_state.history_pso,
@@ -465,18 +464,25 @@ def train_baseline():
     # =============================
     # SECTION 1 : INFORMASI DATA
     # =============================
-    if section == "Informasi Data":
-        st.subheader(f"Pergerakan Harga Saham {ticker}")
-        st.line_chart(data['Close'])
-
-        st.subheader("Statistik Deskriptif (Close)")
-        st.write(data['Close'].describe())
-
+    if section == "Proses Data":
+        st.subheader("Data Saham (Close Price)")
+        st.dataframe(df)
+    
+        st.subheader("Grafik Harga Saham")
+        fig, ax = plt.subplots(figsize=(6,3))
+        ax.plot(df["Date"], df["Close"])
+        ax.set_title("Pergerakan Harga Saham")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Close")
+        st.pyplot(fig)
+    
+        st.subheader("Statistik Deskriptif")
+        st.write(df["Close"].describe())
+        
     # =============================
-    # SECTION 2 : IN DEPTH ANALYSIS
+    # SECTION 2 : TRAINING & EVALUASI
     # =============================
-    elif section == "In-Depth Analysis":
-
+    elif section == "Training & Evaluasi":
         if not st.session_state.trained:
             st.warning("Klik 'Run Training Model' terlebih dahulu.")
         else:
@@ -484,6 +490,8 @@ def train_baseline():
             history_pso = st.session_state.history_pso
             history_ga = st.session_state.history_ga
     
+            st.subheader("Training vs Validation Loss")
+            
             # =====================================================
             # VALIDATION LOSS (3 garis dalam 1 grafik)
             # =====================================================
@@ -492,34 +500,28 @@ def train_baseline():
             # BASELINE
             with col1:
                 fig1, ax1 = plt.subplots(figsize=(4,3))
-                ax1.plot(history_base.history['loss'], label='Training Loss')
-                ax1.plot(history_base.history['val_loss'], label='Validation Loss')
+                ax1.plot(history_base.history['loss'], label='Train')
+                ax1.plot(history_base.history['val_loss'], label='Val')
                 ax1.set_title('Baseline LSTM')
-                ax1.set_xlabel('Epoch')
-                ax1.set_ylabel('Loss')
-                ax1.legend()
+                ax1.legend(fontsize=8)
                 st.pyplot(fig1)
             
             # GA
             with col2:
                 fig2, ax2 = plt.subplots(figsize=(4,3))
-                ax2.plot(history_ga.history['loss'], label='Training Loss')
-                ax2.plot(history_ga.history['val_loss'], label='Validation Loss')
+                ax2.plot(history_ga.history['loss'], label='Train')
+                ax2.plot(history_ga.history['val_loss'], label='Val')
                 ax2.set_title('GA-LSTM')
-                ax2.set_xlabel('Epoch')
-                ax2.set_ylabel('Loss')
-                ax2.legend()
+                ax2.legend(fontsize=8)
                 st.pyplot(fig2)
-            
+        
             # PSO
             with col3:
                 fig3, ax3 = plt.subplots(figsize=(4,3))
-                ax3.plot(history_pso.history['loss'], label='Training Loss')
-                ax3.plot(history_pso.history['val_loss'], label='Validation Loss')
+                ax3.plot(history_pso.history['loss'], label='Train')
+                ax3.plot(history_pso.history['val_loss'], label='Val')
                 ax3.set_title('PSO-LSTM')
-                ax3.set_xlabel('Epoch')
-                ax3.set_ylabel('Loss')
-                ax3.legend()
+                ax3.legend(fontsize=8)
                 st.pyplot(fig3)
             
             # =====================================================
@@ -593,6 +595,7 @@ def train_baseline():
             })
     
             st.dataframe(forecast_df)
+
 
 
 
