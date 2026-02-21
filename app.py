@@ -462,140 +462,141 @@ if st.sidebar.button("Run Training Model"):
         st.session_state.trained = True
         st.success("Training selesai!")
                 
-    # =============================
-    # SECTION 1 : INFORMASI DATA
-    # =============================
-    if section == "Proses Data":
-        st.subheader("Data Saham (Close Price)")
-        st.dataframe(df)
+# =============================
+# SECTION 1 : INFORMASI DATA
+# =============================
+if section == "Proses Data":
+    st.subheader("Data Saham (Close Price)")
+    st.dataframe(df)
     
-        st.subheader("Grafik Harga Saham")
+    st.subheader("Grafik Harga Saham")
+    fig, ax = plt.subplots(figsize=(6,3))
+    ax.plot(df["Date"], df["Close"])
+    ax.set_title("Pergerakan Harga Saham")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Close")
+    st.pyplot(fig)
+    
+    st.subheader("Statistik Deskriptif")
+    st.write(df["Close"].describe())
+        
+# =============================
+# SECTION 2 : TRAINING & EVALUASI
+# =============================
+elif section == "Training & Evaluasi":
+    if not st.session_state.trained:
+        st.warning("Klik 'Run Training Model' terlebih dahulu.")
+    else:
+        history_base = st.session_state.history_base
+        history_pso = st.session_state.history_pso
+        history_ga = st.session_state.history_ga
+
+        st.subheader("Training vs Validation Loss")
+        
+        # =====================================================
+        # VALIDATION LOSS (3 garis dalam 1 grafik)
+        # =====================================================
+        col1, col2, col3 = st.columns(3)
+
+        # BASELINE
+        with col1:
+            fig1, ax1 = plt.subplots(figsize=(4,3))
+            ax1.plot(history_base.history['loss'], label='Train')
+            ax1.plot(history_base.history['val_loss'], label='Val')
+            ax1.set_title('Baseline LSTM')
+            ax1.legend(fontsize=8)
+            st.pyplot(fig1)
+        
+        # GA
+        with col2:
+            fig2, ax2 = plt.subplots(figsize=(4,3))
+            ax2.plot(history_ga.history['loss'], label='Train')
+            ax2.plot(history_ga.history['val_loss'], label='Val')
+            ax2.set_title('GA-LSTM')
+            ax2.legend(fontsize=8)
+            st.pyplot(fig2)
+    
+        # PSO
+        with col3:
+            fig3, ax3 = plt.subplots(figsize=(4,3))
+            ax3.plot(history_pso.history['loss'], label='Train')
+            ax3.plot(history_pso.history['val_loss'], label='Val')
+            ax3.set_title('PSO-LSTM')
+            ax3.legend(fontsize=8)
+            st.pyplot(fig3)
+        
+        # =====================================================
+        # ACTUAL VS PREDICTED (3 MODEL)
+        # =====================================================
+        st.subheader("Actual vs Predicted Comparison")
+
+        fig4, ax4 = plt.subplots(figsize=(6,3))
+        ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
+        ax4.plot(st.session_state.y_pred_base, label="Baseline")
+        ax4.plot(st.session_state.y_pred_pso, label="PSO")
+        ax4.plot(st.session_state.y_pred_ga, label="GA")
+        ax4.legend(fontsize=8)
+        ax4.set_title("Actual vs Predicted", fontsize=10)
+        st.pyplot(fig4, use_container_width=True)
+
+        
+        # =====================================================
+        # MAPE TABLE
+        # =====================================================
+        st.subheader("MAPE Comparison")
+
+        results = pd.DataFrame({
+            "Model": ["Baseline", "PSO", "GA"],
+            "MAPE": [
+                st.session_state.base_mape,
+                st.session_state.pso_mape,
+                st.session_state.ga_mape
+            ]
+        })
+
+        st.dataframe(results)
+    
+# =========================================================
+# SECTION 3 : HASIL FORECAST
+# =========================================================
+elif section == "Forecast":
+    if not st.session_state.trained:
+        st.warning("Klik Run Training Model terlebih dahulu.")
+    else:
+        future_days = st.slider("Forecast (hari)", 5, 30, 7)
+
+        last_window = X_test[-1].copy()
+        future_preds = []
+
+        model = st.session_state.model_base
+
+        for _ in range(future_days):
+            pred = model.predict(last_window.reshape(1,1,1), verbose=0)
+            future_preds.append(pred[0,0])
+            last_window = pred.reshape(1,1)
+
+        future_preds = scaler_y.inverse_transform(np.array(future_preds).reshape(-1,1)).flatten()
+
+        # ===============================
+        # Grafik forecast
+        # ===============================
         fig, ax = plt.subplots(figsize=(6,3))
-        ax.plot(df["Date"], df["Close"])
-        ax.set_title("Pergerakan Harga Saham")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Close")
+        ax.plot(future_preds, label="Forecast")
+        ax.legend()
         st.pyplot(fig)
-    
-        st.subheader("Statistik Deskriptif")
-        st.write(df["Close"].describe())
-        
-    # =============================
-    # SECTION 2 : TRAINING & EVALUASI
-    # =============================
-    elif section == "Training & Evaluasi":
-        if not st.session_state.trained:
-            st.warning("Klik 'Run Training Model' terlebih dahulu.")
-        else:
-            history_base = st.session_state.history_base
-            history_pso = st.session_state.history_pso
-            history_ga = st.session_state.history_ga
-    
-            st.subheader("Training vs Validation Loss")
-            
-            # =====================================================
-            # VALIDATION LOSS (3 garis dalam 1 grafik)
-            # =====================================================
-            col1, col2, col3 = st.columns(3)
 
-            # BASELINE
-            with col1:
-                fig1, ax1 = plt.subplots(figsize=(4,3))
-                ax1.plot(history_base.history['loss'], label='Train')
-                ax1.plot(history_base.history['val_loss'], label='Val')
-                ax1.set_title('Baseline LSTM')
-                ax1.legend(fontsize=8)
-                st.pyplot(fig1)
-            
-            # GA
-            with col2:
-                fig2, ax2 = plt.subplots(figsize=(4,3))
-                ax2.plot(history_ga.history['loss'], label='Train')
-                ax2.plot(history_ga.history['val_loss'], label='Val')
-                ax2.set_title('GA-LSTM')
-                ax2.legend(fontsize=8)
-                st.pyplot(fig2)
-        
-            # PSO
-            with col3:
-                fig3, ax3 = plt.subplots(figsize=(4,3))
-                ax3.plot(history_pso.history['loss'], label='Train')
-                ax3.plot(history_pso.history['val_loss'], label='Val')
-                ax3.set_title('PSO-LSTM')
-                ax3.legend(fontsize=8)
-                st.pyplot(fig3)
-            
-            # =====================================================
-            # ACTUAL VS PREDICTED (3 MODEL)
-            # =====================================================
-            st.subheader("Actual vs Predicted Comparison")
-    
-            fig4, ax4 = plt.subplots(figsize=(6,3))
-            ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
-            ax4.plot(st.session_state.y_pred_base, label="Baseline")
-            ax4.plot(st.session_state.y_pred_pso, label="PSO")
-            ax4.plot(st.session_state.y_pred_ga, label="GA")
-            ax4.legend(fontsize=8)
-            ax4.set_title("Actual vs Predicted", fontsize=10)
-            st.pyplot(fig4, use_container_width=True)
+        # ===============================
+        # tabel forecast
+        # ===============================
+        future_dates = pd.date_range(start=df.index[-1] + timedelta(days=1), periods=future_days)
 
-            
-            # =====================================================
-            # MAPE TABLE
-            # =====================================================
-            st.subheader("MAPE Comparison")
-    
-            results = pd.DataFrame({
-                "Model": ["Baseline", "PSO", "GA"],
-                "MAPE": [
-                    st.session_state.base_mape,
-                    st.session_state.pso_mape,
-                    st.session_state.ga_mape
-                ]
-            })
-    
-            st.dataframe(results)
-    
-    # =========================================================
-    # SECTION 3 : HASIL FORECAST
-    # =========================================================
-    elif section == "Forecast":
-        if not st.session_state.trained:
-            st.warning("Klik Run Training Model terlebih dahulu.")
-        else:
-            future_days = st.slider("Forecast (hari)", 5, 30, 7)
-    
-            last_window = X_test[-1].copy()
-            future_preds = []
-    
-            model = st.session_state.model_base
-    
-            for _ in range(future_days):
-                pred = model.predict(last_window.reshape(1,1,1), verbose=0)
-                future_preds.append(pred[0,0])
-                last_window = pred.reshape(1,1)
-    
-            future_preds = scaler_y.inverse_transform(np.array(future_preds).reshape(-1,1)).flatten()
-    
-            # ===============================
-            # Grafik forecast
-            # ===============================
-            fig, ax = plt.subplots(figsize=(6,3))
-            ax.plot(future_preds, label="Forecast")
-            ax.legend()
-            st.pyplot(fig)
-    
-            # ===============================
-            # tabel forecast
-            # ===============================
-            future_dates = pd.date_range(start=df.index[-1] + timedelta(days=1), periods=future_days)
-    
-            forecast_df = pd.DataFrame({
-                "Date": future_dates,
-                "Forecast": future_preds
-            })
-    
-            st.dataframe(forecast_df)
+        forecast_df = pd.DataFrame({
+            "Date": future_dates,
+            "Forecast": future_preds
+        })
+
+        st.dataframe(forecast_df)
+
 
 
 
