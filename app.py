@@ -265,7 +265,7 @@ def train_ga():
         elites = population[:5]
         offspring = []
         while len(offspring) < POP_SIZE - len(elites):
-            p1, p2 = np.random.choice(elites, 2, replace=False)
+            p1, p2 = random.sample(elites, 2)
             child = crossover(p1, p2)
             child = mutate(child, GA_LB, GA_UB, MUTATION_RATE)
             offspring.append(child)
@@ -466,17 +466,18 @@ if st.sidebar.button("Run Training Model"):
          st.session_state.history_ga,
          st.session_state.ga_mape,
          st.session_state.y_pred_ga,
-         st.session_state.y_true_ga) = train_ga()
-
+         st.session_state.y_true_ga,
+         st.session_state.gbest_ga) = train_ga()
                 
         (st.session_state.model_pso,
          st.session_state.history_pso,
          st.session_state.pso_mape,
          st.session_state.y_pred_pso,
-         st.session_state.y_true_pso) = train_pso()
+         st.session_state.y_true_pso,
+         st.session_state.gbest_pso) = train_pso()
         
-        st.session_state.trained = True
-        st.success("Training selesai!")
+         st.session_state.trained = True
+         st.success("Training selesai!")
                 
 # =============================
 # SECTION 1 : INFORMASI DATA
@@ -604,7 +605,10 @@ elif section == "Forecast":
         # ===============================
         # tabel forecast
         # ===============================
-        future_dates = pd.date_range(start=df.index[-1] + timedelta(days=1), periods=future_days)
+        future_dates = pd.date_range(
+            start=df["Date"].iloc[-1] + timedelta(days=1),
+            periods=future_days
+        )
 
         forecast_df = pd.DataFrame({
             "Date": future_dates,
@@ -612,6 +616,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
