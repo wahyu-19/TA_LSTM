@@ -512,11 +512,7 @@ def train_pso():
         pso_mape,
         y_pred,
         y_true,
-        np.array(history_gbest_cost),
-        best_units,
-        best_lr,
-        best_batch,
-        best_dropout
+        np.array(history_gbest_cost)
     )
     
 # =========================================================
@@ -723,6 +719,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
