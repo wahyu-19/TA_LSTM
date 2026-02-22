@@ -19,12 +19,14 @@ np.random.seed(42)
 tf.random.set_seed(42)
 random.seed(42)
 
-st.set_page_config(layout="centered")
+st.set_page_config(layout="wide")
 
 st.markdown("""
 <style>
-.block-container {
-    max-width: 900px;
+section.main > div {
+    max-width: 1000px;
+    padding-left: 2rem;
+    padding-right: 2rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -621,4 +623,5 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
