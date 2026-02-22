@@ -202,7 +202,7 @@ def train_ga():
             )
             model.fit(
                 X_tr, y_tr,
-                epochs=50,
+                epochs=20,
                 batch_size=batch,
                 verbose=1
             )
@@ -374,7 +374,7 @@ def train_pso():
                 lr = float(p[1])
                 batch = int(np.round(p[2]))
                 dropout = float(p[3])
-                epochs_fixed = 50
+                epochs_fixed = 20
 
                 try:
                     set_seed(42)
@@ -723,6 +723,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
