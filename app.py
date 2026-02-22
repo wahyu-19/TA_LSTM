@@ -202,7 +202,7 @@ def train_ga():
             )
             model.fit(
                 X_tr, y_tr,
-                epochs=10,
+                epochs=100,
                 batch_size=batch,
                 verbose=0
             )
@@ -254,6 +254,7 @@ def train_ga():
     val_frac_for_ga = 0.2
     n_tr_samples_ga = X_train.shape[0]
     n_tr_val_ga = int(n_tr_samples_ga * (1 - val_frac_for_ga))
+    
     X_tr_for_ga = X_train[:n_tr_val_ga]
     y_tr_for_ga = y_train[:n_tr_val_ga]
     X_val_for_ga = X_train[n_tr_val_ga:]
@@ -284,17 +285,22 @@ def train_ga():
 
         order = np.argsort(fitness_scores)
         population = [population[i] for i in order]
+        
         if fitness_scores[order[0]] < best_mse_ga:
             best_mse_ga = fitness_scores[order[0]]
             best_params_ga = population[0]
+        
         gbest_history_ga.append(best_mse_ga)
+        
         elites = population[:5]
         offspring = []
+        
         while len(offspring) < POP_SIZE - len(elites):
             p1, p2 = random.sample(elites, 2)
             child = crossover(p1, p2)
             child = mutate(child, GA_LB, GA_UB, MUTATION_RATE)
             offspring.append(child)
+        
         population = elites + offspring
 
     best_units_ga = int(np.round(best_params_ga['units']))
@@ -324,90 +330,94 @@ def train_ga():
     ga_mape = mape(y_true_ga, y_pred_ga)
     return final_model_ga, history_ga, ga_mape, y_pred_ga, y_true_ga, gbest_history_ga
     
+
 def train_pso():
+
     set_seed(42)
+    K.clear_session()
 
     # =========================
-    # PARAMETER PSO (TA Friendly)
+    # KONFIGURASI PSO
     # =========================
-    PSO_N_PARTICLES = 10        
-    PSO_ITERS = 10            
+    PSO_N_PARTICLES = 10
+    PSO_ITERS = 10
     PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
-    
-    # Bound: [units, lr, batch, dropout]
+
     PSO_BOUNDS = (
-        np.array([16, 0.0001, 16, 0.1]),   # lower bound
-        np.array([128, 0.01, 128, 0.5])    # upper bound (lebih realistis)
+        np.array([16, 0.0001, 8, 0.1]),
+        np.array([160, 0.001, 256, 1])
     )
-    
+
     # =========================
-    # SPLIT VALIDASI UNTUK PSO
+    # SPLIT DATA UNTUK PSO
     # =========================
-    val_frac = 0.2
-    n_samples = X_train.shape[0]
-    n_train_split = int(n_samples * (1 - val_frac))
-    
-    X_tr = X_train[:n_train_split]
-    y_tr = y_train[:n_train_split]
-    X_val = X_train[n_train_split:]
-    y_val = y_train[n_train_split:]
-    
+    val_frac_for_pso = 0.2
+    n_tr_samples = X_train.shape[0]
+    n_tr_val = int(n_tr_samples * (1 - val_frac_for_pso))
+
+    X_tr_for_pso = X_train[:n_tr_val]
+    y_tr_for_pso = y_train[:n_tr_val]
+    X_val_for_pso = X_train[n_tr_val:]
+    y_val_for_pso = y_train[n_tr_val:]
+
     # =========================
-    # OBJECTIVE FUNCTION (PAKAI MAPE)
+    # OBJECTIVE FUNCTION (MSE)
     # =========================
-    def objective_function(particles):
-        n_particles = particles.shape[0]
-        costs = np.zeros(n_particles)
-    
-        for i in range(n_particles):
-            try:
-                # Decode hyperparameter
-                units = int(np.clip(np.round(particles[i, 0]), 16, 128))
-                lr = float(np.clip(particles[i, 1], 0.0001, 0.01))
-                batch = int(np.clip(np.round(particles[i, 2]), 16, 128))
-                dropout = float(np.clip(particles[i, 3], 0.1, 0.5))
-    
-                # Epoch kecil untuk optimasi (SANGAT PENTING)
-                epochs_fitness = 10
-    
-                set_seed(42)
+    def make_pso_obj(X_tr, y_tr, X_va, y_va, scaler_y):
+        def obj_fn(particles):
+            n_particles = particles.shape[0]
+            costs = np.zeros(n_particles)
+
+            for i, p in enumerate(particles):
+
+                units = int(np.round(p[0]))
+                lr = float(p[1])
+                batch = int(np.round(p[2]))
+                dropout = float(p[3])
+                epochs_fixed = 100
+
+                try:
+                    set_seed(42)
+                    K.clear_session()
+
+                    model = build_lstm_model(
+                        input_shape=(X_tr.shape[1], X_tr.shape[2]),
+                        units=units,
+                        dropout=dropout,
+                        lr=lr
+                    )
+
+                    model.fit(
+                        X_tr, y_tr,
+                        epochs=epochs_fixed,
+                        batch_size=batch,
+                        verbose=0
+                    )
+
+                    yv_pred = model.predict(X_va, verbose=0)
+                    yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
+                    yv_true_orig = scaler_y.inverse_transform(y_va).flatten()
+
+                    costs[i] = mean_squared_error(yv_true_orig, yv_pred_orig)
+
+                except Exception as e:
+                    print("PSO eval error:", e)
+                    costs[i] = 1e12
+
                 K.clear_session()
-    
-                model = build_lstm_model(
-                    input_shape=(X_tr.shape[1], X_tr.shape[2]),
-                    units=units,
-                    dropout=dropout,
-                    lr=lr
-                )
-    
-                model.fit(
-                    X_tr, y_tr,
-                    epochs=epochs_fitness,
-                    batch_size=batch,
-                    verbose=0
-                )
-    
-                # Prediksi validation
-                y_val_pred = model.predict(X_val, verbose=0)
-    
-                # Inverse scaling (WAJIB untuk MAPE yang valid)
-                y_val_pred_inv = scaler_y.inverse_transform(y_val_pred).flatten()
-                y_val_true_inv = scaler_y.inverse_transform(y_val).flatten()
-    
-                # FITNESS = MAPE (konsisten dengan evaluasi skripsi)
-                cost = mape(y_val_true_inv, y_val_pred_inv)
-                costs[i] = cost
-    
-            except Exception as e:
-                print("PSO Error:", e)
-                costs[i] = 1e10
-    
-            K.clear_session()
-    
-        return costs
-    
+
+            return costs
+        return obj_fn
+
+
+    pso_obj = make_pso_obj(
+        X_tr_for_pso, y_tr_for_pso,
+        X_val_for_pso, y_val_for_pso,
+        scaler_y
+    )
+
     # =========================
-    # INISIALISASI OPTIMIZER
+    # INIT OPTIMIZER
     # =========================
     optimizer = GlobalBestPSO(
         n_particles=PSO_N_PARTICLES,
@@ -415,59 +425,99 @@ def train_pso():
         options=PSO_OPTIONS,
         bounds=PSO_BOUNDS
     )
-    
-    # =========================
-    # RUN PSO ITERATION
-    # =========================
-    best_cost, best_pos = optimizer.optimize(
-        objective_function,
-        iters=PSO_ITERS,
-        verbose=False
-    )
+
+    n_particles, dims = optimizer.swarm.position.shape
+    optimizer.swarm.pbest_pos = optimizer.swarm.position.copy()
+    optimizer.swarm.pbest_cost = np.full(n_particles, np.inf)
+
+    history_gbest_cost = []
+    history_gbest_pos = []
 
     # =========================
-    # AMBIL PARAMETER TERBAIK
+    # LOOP PSO MANUAL
     # =========================
+    for it in range(PSO_ITERS):
+
+        costs = pso_obj(optimizer.swarm.position)
+
+        mask = costs < optimizer.swarm.pbest_cost
+        optimizer.swarm.pbest_cost[mask] = costs[mask]
+        optimizer.swarm.pbest_pos[mask] = optimizer.swarm.position[mask].copy()
+
+        best_idx = np.argmin(optimizer.swarm.pbest_cost)
+        optimizer.swarm.best_cost = optimizer.swarm.pbest_cost[best_idx]
+        optimizer.swarm.best_pos = optimizer.swarm.pbest_pos[best_idx].copy()
+
+        history_gbest_cost.append(float(optimizer.swarm.best_cost))
+        history_gbest_pos.append(optimizer.swarm.best_pos.copy())
+
+        # update velocity
+        r1 = np.random.rand(*optimizer.swarm.position.shape)
+        r2 = np.random.rand(*optimizer.swarm.position.shape)
+
+        optimizer.swarm.velocity = (
+            PSO_OPTIONS['w'] * optimizer.swarm.velocity
+            + PSO_OPTIONS['c1'] * r1 * (optimizer.swarm.pbest_pos - optimizer.swarm.position)
+            + PSO_OPTIONS['c2'] * r2 * (optimizer.swarm.best_pos - optimizer.swarm.position)
+        )
+
+        # update posisi
+        optimizer.swarm.position += optimizer.swarm.velocity
+        lb, ub = PSO_BOUNDS
+        optimizer.swarm.position = np.clip(optimizer.swarm.position, lb, ub)
+
+    # =========================
+    # PARAMETER TERBAIK
+    # =========================
+    best_pos = history_gbest_pos[-1]
     best_units = int(np.round(best_pos[0]))
     best_lr = float(best_pos[1])
     best_batch = int(np.round(best_pos[2]))
     best_dropout = float(best_pos[3])
-    
+
     # =========================
-    # TRAIN FINAL MODEL (EPOCH 100 - SESUAI METODOLOGI TA)
+    # TRAIN FINAL MODEL
     # =========================
     set_seed(42)
     K.clear_session()
-    
+
     model_final = build_lstm_model(
         input_shape=(X_train.shape[1], X_train.shape[2]),
         units=best_units,
         dropout=best_dropout,
         lr=best_lr
     )
-    
+
     history_final = model_final.fit(
         X_train, y_train,
-        epochs=100,            # FINAL TRAINING (boleh 100)
+        epochs=100,
         batch_size=best_batch,
         validation_split=0.2,
         verbose=0
     )
-    
+
     # =========================
-    # EVALUASI TEST (MAPE)
+    # EVALUASI TEST
     # =========================
     y_pred_scaled = model_final.predict(X_test, verbose=0)
-    
+
     y_pred = scaler_y.inverse_transform(y_pred_scaled).flatten()
     y_true = scaler_y.inverse_transform(y_test).flatten()
-    
+
     pso_mape = mape(y_true, y_pred)
-    
-    # history gbest untuk plot konvergensi (opsional)
-    gbest_history = optimizer.cost_history
-    
-    return model_final, history_final, pso_mape, y_pred, y_true, gbest_history
+
+    return (
+        model_final,
+        history_final,
+        pso_mape,
+        y_pred,
+        y_true,
+        np.array(history_gbest_cost),
+        best_units,
+        best_lr,
+        best_batch,
+        best_dropout
+    )
     
 # =========================================================
 # SESSION STATE (agar tidak retrain saat pindah tab)
@@ -673,6 +723,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
