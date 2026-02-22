@@ -158,10 +158,10 @@ def train_baseline():
         epochs=100,
         batch_size=64,
         validation_split=0.2,
-        verbose=0
+        verbose=1
     )
 
-    y_pred_scaled = model.predict(X_test, verbose=0)
+    y_pred_scaled = model.predict(X_test, verbose=1)
     y_pred = scaler_y.inverse_transform(y_pred_scaled).flatten()
     y_true = scaler_y.inverse_transform(y_test).flatten()
 
@@ -204,9 +204,9 @@ def train_ga():
                 X_tr, y_tr,
                 epochs=50,
                 batch_size=batch,
-                verbose=0
+                verbose=1
             )
-            yv_pred = model.predict(X_val, verbose=0)
+            yv_pred = model.predict(X_val, verbose=1)
             yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
             yv_true_orig = scaler_y.inverse_transform(y_val).flatten()
         
@@ -391,10 +391,10 @@ def train_pso():
                         X_tr, y_tr,
                         epochs=epochs_fixed,
                         batch_size=batch,
-                        verbose=0
+                        verbose=1
                     )
 
-                    yv_pred = model.predict(X_va, verbose=0)
+                    yv_pred = model.predict(X_va, verbose=1)
                     yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
                     yv_true_orig = scaler_y.inverse_transform(y_va).flatten()
 
@@ -493,13 +493,13 @@ def train_pso():
         epochs=100,
         batch_size=best_batch,
         validation_split=0.2,
-        verbose=0
+        verbose=1
     )
 
     # =========================
     # EVALUASI TEST
     # =========================
-    y_pred_scaled = model_final.predict(X_test, verbose=0)
+    y_pred_scaled = model_final.predict(X_test, verbose=1)
 
     y_pred = scaler_y.inverse_transform(y_pred_scaled).flatten()
     y_true = scaler_y.inverse_transform(y_test).flatten()
@@ -665,7 +665,7 @@ elif section == "Forecast":
         model = st.session_state.model_base
 
         for _ in range(future_days):
-            pred = model.predict(last_window.reshape(1,1,1), verbose=0)
+            pred = model.predict(last_window.reshape(1,1,1), verbose=1)
             future_preds.append(pred[0,0])
             last_window = pred.reshape(1,1)
 
@@ -723,6 +723,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
