@@ -23,11 +23,30 @@ st.set_page_config(layout="wide")
 
 st.markdown("""
 <style>
-section.main > div {
-    max-width: 1000px;
-    padding-left: 2rem;
-    padding-right: 2rem;
+
+/* HILANGKAN PADDING ATAS BAWAH STREAMLIT */
+.block-container {
+    padding-top: 0.5rem;
+    padding-bottom: 0rem;
 }
+
+/* PAKSA HALAMAN PAS TINGGI LAYAR */
+html, body, [data-testid="stAppViewContainer"] {
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* AREA MAIN JANGAN SCROLL */
+section.main {
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* KECILKAN FONT GLOBAL */
+html {
+    font-size: 14px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -494,7 +513,7 @@ if st.sidebar.button("Run Training Model"):
 # =============================
 if section == "Informasi Data":
     st.subheader("Grafik Harga Saham")
-    fig, ax = plt.subplots(figsize=(6,3))
+    fig, ax = plt.subplots(figsize=(5,2.5))
     ax.plot(df["Date"], df["Close"])
     ax.set_title("Pergerakan Harga Saham")
     ax.set_xlabel("Date")
@@ -554,7 +573,7 @@ elif section == "Training & Evaluasi":
         # =====================================================
         st.subheader("Actual vs Predicted Comparison")
 
-        fig, ax = plt.subplots(figsize=(2.5,1.2))
+        fig, ax = plt.subplots(figsize=(5,2.5))
         ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
         ax4.plot(st.session_state.y_pred_base, label="Baseline")
         ax4.plot(st.session_state.y_pred_pso, label="PSO")
@@ -604,7 +623,7 @@ elif section == "Forecast":
         # ===============================
         # Grafik forecast
         # ===============================
-        fig, ax = plt.subplots(figsize=(6,3))
+        fig, ax = plt.subplots(figsize=(5,2.5))
         ax.plot(future_preds, label="Forecast")
         ax.legend()
         st.pyplot(fig)
@@ -623,5 +642,6 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
