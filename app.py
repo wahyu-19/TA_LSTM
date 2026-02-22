@@ -620,6 +620,13 @@ elif section == "Forecast":
             last_window = pred.reshape(1,1)
 
         future_preds = scaler_y.inverse_transform(np.array(future_preds).reshape(-1,1)).flatten()
+        # ===============================
+        # BUAT TANGGAL MASA DEPAN
+        # ===============================
+        future_dates = pd.bdate_range(
+            start=df["Date"].iloc[-1],
+            periods=future_days + 1
+        )[1:]
 
         # ===============================
         # Grafik forecast
@@ -627,49 +634,28 @@ elif section == "Forecast":
         st.subheader("Forecast Harga Saham")
 
         fig, ax = plt.subplots(figsize=(9,3))
+
+        # data historis
+        ax.plot(df["Date"], df["Close"], label="Data Historis", linewidth=2)
         
-        # ======================
-        # DATA HISTORIS
-        # ======================
+        # sambungan garis terakhir (optional)
         ax.plot(
-            df["Date"],
-            df["Close"],
-            label="Data Historis",
-            linewidth=2
-        )
-        
-        # ======================
-        # GARIS PENGHUBUNG (optional)
-        # ======================
-        last_actual_date = df["Date"].iloc[-1]
-        last_actual_value = df["Close"].iloc[-1]
-        
-        ax.plot(
-            [last_actual_date, future_dates[0]],
-            [last_actual_value, future_predictions[0]],
-            color="orange",
+            [df["Date"].iloc[-1], future_dates[0]],
+            [df["Close"].iloc[-1], future_preds[0]],
             linestyle="--"
         )
         
-        # ======================
-        # FORECAST MASA DEPAN
-        # ======================
+        # forecast
         ax.plot(
             future_dates,
-            future_predictions,
+            future_preds,
             label="Forecast",
             linestyle="--",
             marker="o"
         )
         
-        # ======================
-        # FORMAT
-        # ======================
-        ax.set_title("Pergerakan Harga Saham + Forecast")
-        ax.set_xlabel("Tanggal")
-        ax.set_ylabel("Harga")
         ax.legend()
-        fig.tight_layout()
+        ax.set_title("Pergerakan Harga Saham + Forecast")
         
         st.pyplot(fig)
 
@@ -687,6 +673,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
