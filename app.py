@@ -24,31 +24,28 @@ st.set_page_config(layout="wide")
 st.markdown("""
 <style>
 
-/* HILANGKAN PADDING ATAS BAWAH STREAMLIT */
+/* Padding halaman */
 .block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 0rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    max-width: 1200px;   /* batasi lebar konten */
 }
 
-/* PAKSA HALAMAN PAS TINGGI LAYAR */
-html, body, [data-testid="stAppViewContainer"] {
-    height: 100vh;
-    overflow: hidden;
-}
-
-/* AREA MAIN JANGAN SCROLL */
-section.main {
-    height: 100vh;
-    overflow: hidden;
-}
-
-/* KECILKAN FONT GLOBAL */
+/* kecilkan font global */
 html {
-    font-size: 10px;
+    font-size: 14px;
 }
 
 </style>
 """, unsafe_allow_html=True)
+
+# =============================
+# FUNGSI PLOT KECIL CENTER
+# =============================
+def show_plot(fig, ratio=[2,3,2]):
+    left, center, right = st.columns(ratio)
+    with center:
+        st.pyplot(fig)
 
 # =============================
 # SIDEBAR INPUT
@@ -518,7 +515,7 @@ if section == "Informasi Data":
     ax.set_title("Pergerakan Harga Saham")
     ax.set_xlabel("Date")
     ax.set_ylabel("Close")
-    st.pyplot(fig)
+    show_plot(fig)
     
     st.subheader("Statistik Deskriptif")
     st.write(df["Close"].describe())
@@ -573,14 +570,15 @@ elif section == "Training & Evaluasi":
         # =====================================================
         st.subheader("Actual vs Predicted Comparison")
 
-        fig, ax = plt.subplots(figsize=(5,2.5))
+        fig4, ax4 = plt.subplots(figsize=(5,2.5))
         ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
         ax4.plot(st.session_state.y_pred_base, label="Baseline")
         ax4.plot(st.session_state.y_pred_pso, label="PSO")
         ax4.plot(st.session_state.y_pred_ga, label="GA")
         ax4.legend(fontsize=8)
         ax4.set_title("Actual vs Predicted", fontsize=10)
-        st.pyplot(fig4, use_container_width=True)
+        
+        show_plot(fig4)
 
         
         # =====================================================
@@ -626,7 +624,7 @@ elif section == "Forecast":
         fig, ax = plt.subplots(figsize=(5,2.5))
         ax.plot(future_preds, label="Forecast")
         ax.legend()
-        st.pyplot(fig)
+        show_plot(fig)
 
         # ===============================
         # tabel forecast
@@ -642,6 +640,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
