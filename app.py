@@ -28,7 +28,7 @@ st.markdown("""
 .block-container {
     padding-top: 2.5rem;
     padding-bottom: 1rem;
-    max-width: 1200px;   /* batasi lebar konten */
+    max-width: 1000px;   /* batasi lebar konten */
 }
 
 /* kecilkan font global */
@@ -42,7 +42,7 @@ html {
 # =============================
 # FUNGSI PLOT KECIL CENTER
 # =============================
-def show_plot(fig, ratio=[2,3,2]):
+def show_plot(fig, ratio=[1,5,1]):
     left, center, right = st.columns(ratio)
     with center:
         st.pyplot(fig)
@@ -510,7 +510,7 @@ if st.sidebar.button("Run Training Model"):
 # =============================
 if section == "Informasi Data":
     st.subheader("Grafik Harga Saham")
-    fig, ax = plt.subplots(figsize=(6,3))
+    fig, ax = plt.subplots(figsize=(7,3))
     ax.plot(df["Date"], df["Close"])
     ax.set_title("Pergerakan Harga Saham")
     ax.set_xlabel("Date")
@@ -519,7 +519,7 @@ if section == "Informasi Data":
     
     st.subheader("Statistik Deskriptif")
 
-    left, center, right = st.columns([2,3,2])
+    left, center, right = st.columns([1,5,1])
     with center:
         st.dataframe(df["Close"].describe().to_frame())
         
@@ -624,7 +624,7 @@ elif section == "Forecast":
         # ===============================
         # Grafik forecast
         # ===============================
-        fig, ax = plt.subplots(figsize=(6,3))
+        fig, ax = plt.subplots(figsize=(7,3))
         ax.plot(future_preds, label="Forecast")
         ax.legend()
         show_plot(fig)
@@ -643,6 +643,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
