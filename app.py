@@ -147,7 +147,7 @@ def train_ga():
     POP_SIZE = 10
     N_GENERATIONS = 10
     MUTATION_RATE = 0.3
-    GA_LB = [16, 8, 0.2, 0.0001]
+    GA_LB = [16, 8, 0.1, 0.0001]
     GA_UB = [160, 256, 1, 0.001]
 
     def init_individual(lb, ub):
@@ -310,7 +310,7 @@ def train_pso():
     
     # Bound: [units, lr, batch, dropout]
     PSO_BOUNDS = (
-        np.array([16, 0.0001, 16, 0.2]),   # lower bound
+        np.array([16, 0.0001, 16, 0.1]),   # lower bound
         np.array([128, 0.01, 128, 0.5])    # upper bound (lebih realistis)
     )
     
@@ -342,7 +342,7 @@ def train_pso():
                 dropout = float(np.clip(particles[i, 3], 0.1, 0.5))
     
                 # Epoch kecil untuk optimasi (SANGAT PENTING)
-                epochs_fitness = 30
+                epochs_fitness = 10
     
                 set_seed(42)
                 K.clear_session()
@@ -483,11 +483,8 @@ if st.sidebar.button("Run Training Model"):
 # SECTION 1 : INFORMASI DATA
 # =============================
 if section == "Informasi Data":
-    st.subheader("Data Saham (Close Price)")
-    st.dataframe(df)
-    
     st.subheader("Grafik Harga Saham")
-    fig, ax = plt.subplots(figsize=(6,3))
+    fig, ax = plt.subplots(figsize=(4,2))
     ax.plot(df["Date"], df["Close"])
     ax.set_title("Pergerakan Harga Saham")
     ax.set_xlabel("Date")
@@ -517,7 +514,7 @@ elif section == "Training & Evaluasi":
 
         # BASELINE
         with col1:
-            fig1, ax1 = plt.subplots(figsize=(4,3))
+            fig1, ax1 = plt.subplots(figsize=(3,2))
             ax1.plot(history_base.history['loss'], label='Train')
             ax1.plot(history_base.history['val_loss'], label='Val')
             ax1.set_title('Baseline LSTM')
@@ -526,7 +523,7 @@ elif section == "Training & Evaluasi":
         
         # GA
         with col2:
-            fig2, ax2 = plt.subplots(figsize=(4,3))
+            fig2, ax2 = plt.subplots(figsize=(3,2))
             ax2.plot(history_ga.history['loss'], label='Train')
             ax2.plot(history_ga.history['val_loss'], label='Val')
             ax2.set_title('GA-LSTM')
@@ -535,7 +532,7 @@ elif section == "Training & Evaluasi":
     
         # PSO
         with col3:
-            fig3, ax3 = plt.subplots(figsize=(4,3))
+            fig3, ax3 = plt.subplots(figsize=(3,2))
             ax3.plot(history_pso.history['loss'], label='Train')
             ax3.plot(history_pso.history['val_loss'], label='Val')
             ax3.set_title('PSO-LSTM')
@@ -547,7 +544,7 @@ elif section == "Training & Evaluasi":
         # =====================================================
         st.subheader("Actual vs Predicted Comparison")
 
-        fig4, ax4 = plt.subplots(figsize=(6,3))
+        fig4, ax4 = plt.subplots(figsize=(4,2))
         ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
         ax4.plot(st.session_state.y_pred_base, label="Baseline")
         ax4.plot(st.session_state.y_pred_pso, label="PSO")
@@ -597,7 +594,7 @@ elif section == "Forecast":
         # ===============================
         # Grafik forecast
         # ===============================
-        fig, ax = plt.subplots(figsize=(6,3))
+        fig, ax = plt.subplots(figsize=(4,2))
         ax.plot(future_preds, label="Forecast")
         ax.legend()
         st.pyplot(fig)
@@ -616,6 +613,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
