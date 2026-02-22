@@ -204,7 +204,7 @@ def train_ga():
                 X_tr, y_tr,
                 epochs=20,
                 batch_size=batch,
-                verbose=1
+                verbose=0
             )
             yv_pred = model.predict(X_val, verbose=1)
             yv_pred_orig = scaler_y.inverse_transform(yv_pred).flatten()
@@ -391,7 +391,7 @@ def train_pso():
                         X_tr, y_tr,
                         epochs=epochs_fixed,
                         batch_size=batch,
-                        verbose=1
+                        verbose=0
                     )
 
                     yv_pred = model.predict(X_va, verbose=1)
@@ -723,6 +723,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
