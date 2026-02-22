@@ -174,7 +174,7 @@ def train_ga():
     N_GENERATIONS = 10
     MUTATION_RATE = 0.3
     GA_LB = [16, 8, 0.1, 0.0001]
-    GA_UB = [160, 256, 1, 0.001]
+    GA_UB = [160, 256, 0.8, 0.001]
 
     def init_individual(lb, ub):
         return {
@@ -345,7 +345,7 @@ def train_pso():
 
     PSO_BOUNDS = (
         np.array([16, 0.0001, 8, 0.1]),
-        np.array([160, 0.001, 256, 1])
+        np.array([160, 0.001, 256, 0.8])
     )
 
     # =========================
@@ -723,6 +723,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
