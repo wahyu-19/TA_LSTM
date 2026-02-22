@@ -624,10 +624,54 @@ elif section == "Forecast":
         # ===============================
         # Grafik forecast
         # ===============================
-        fig, ax = plt.subplots(figsize=(7,3))
-        ax.plot(future_preds, label="Forecast")
+        st.subheader("Forecast Harga Saham")
+
+        fig, ax = plt.subplots(figsize=(9,3))
+        
+        # ======================
+        # DATA HISTORIS
+        # ======================
+        ax.plot(
+            df["Date"],
+            df["Close"],
+            label="Data Historis",
+            linewidth=2
+        )
+        
+        # ======================
+        # GARIS PENGHUBUNG (optional)
+        # ======================
+        last_actual_date = df["Date"].iloc[-1]
+        last_actual_value = df["Close"].iloc[-1]
+        
+        ax.plot(
+            [last_actual_date, future_dates[0]],
+            [last_actual_value, future_predictions[0]],
+            color="orange",
+            linestyle="--"
+        )
+        
+        # ======================
+        # FORECAST MASA DEPAN
+        # ======================
+        ax.plot(
+            future_dates,
+            future_predictions,
+            label="Forecast",
+            linestyle="--",
+            marker="o"
+        )
+        
+        # ======================
+        # FORMAT
+        # ======================
+        ax.set_title("Pergerakan Harga Saham + Forecast")
+        ax.set_xlabel("Tanggal")
+        ax.set_ylabel("Harga")
         ax.legend()
-        show_plot(fig)
+        fig.tight_layout()
+        
+        st.pyplot(fig)
 
         # ===============================
         # tabel forecast
@@ -643,6 +687,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
