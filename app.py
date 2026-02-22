@@ -455,7 +455,7 @@ if "trained" not in st.session_state:
 st.sidebar.markdown("### Training Model")
 
 if st.sidebar.button("Run Training Model"):
-    with st.spinner("Training Baseline & PSO..."):
+    with st.spinner("Training Baseline, GA, PSO"):
         (st.session_state.model_base,
          st.session_state.history_base,
          st.session_state.base_mape,
@@ -475,9 +475,9 @@ if st.sidebar.button("Run Training Model"):
          st.session_state.y_pred_pso,
          st.session_state.y_true_pso,
          st.session_state.gbest_pso) = train_pso()
-        
-         st.session_state.trained = True
-         st.success("Training selesai!")
+
+        st.session_state.trained = True
+        st.success("Training selesai!")
                 
 # =============================
 # SECTION 1 : INFORMASI DATA
@@ -613,6 +613,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
