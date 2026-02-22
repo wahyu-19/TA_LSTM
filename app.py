@@ -26,7 +26,7 @@ st.markdown("""
 
 /* HILANGKAN PADDING ATAS BAWAH STREAMLIT */
 .block-container {
-    padding-top: 0.5rem;
+    padding-top: 1rem;
     padding-bottom: 0rem;
 }
 
