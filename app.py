@@ -155,7 +155,7 @@ def train_baseline():
 
     history = model.fit(
         X_train, y_train,
-        epochs=100,
+        epochs=10,
         batch_size=64,
         validation_split=0.2,
         verbose=0
@@ -170,8 +170,8 @@ def train_baseline():
 def train_ga():
     set_seed(42)
         
-    POP_SIZE = 10
-    N_GENERATIONS = 10
+    POP_SIZE = 5
+    N_GENERATIONS = 5
     MUTATION_RATE = 0.3
     GA_LB = [16, 8, 0.1, 0.0001]
     GA_UB = [160, 256, 1, 0.001]
@@ -202,7 +202,7 @@ def train_ga():
             )
             model.fit(
                 X_tr, y_tr,
-                epochs=10,
+                epochs=5,
                 batch_size=batch,
                 verbose=0
             )
@@ -311,7 +311,7 @@ def train_ga():
     )
     history_ga = final_model_ga.fit(
         X_train, y_train,
-        epochs=100,
+        epochs=10,
         batch_size=best_batch_ga,
         validation_split=0.2,
         verbose=1
@@ -330,8 +330,8 @@ def train_pso():
     # =========================
     # PARAMETER PSO (TA Friendly)
     # =========================
-    PSO_N_PARTICLES = 10        
-    PSO_ITERS = 10            
+    PSO_N_PARTICLES = 5        
+    PSO_ITERS = 5            
     PSO_OPTIONS = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
     
     # Bound: [units, lr, batch, dropout]
@@ -368,7 +368,7 @@ def train_pso():
                 dropout = float(np.clip(particles[i, 3], 0.1, 0.5))
     
                 # Epoch kecil untuk optimasi (SANGAT PENTING)
-                epochs_fitness = 10
+                epochs_fitness = 5
     
                 set_seed(42)
                 K.clear_session()
@@ -448,7 +448,7 @@ def train_pso():
     
     history_final = model_final.fit(
         X_train, y_train,
-        epochs=100,            # FINAL TRAINING (boleh 100)
+        epochs=10,            # FINAL TRAINING (boleh 100)
         batch_size=best_batch,
         validation_split=0.2,
         verbose=0
@@ -643,6 +643,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
