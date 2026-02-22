@@ -26,7 +26,7 @@ st.markdown("""
 
 /* Padding halaman */
 .block-container {
-    padding-top: 1rem;
+    padding-top: 2.5rem;
     padding-bottom: 1rem;
     max-width: 1200px;   /* batasi lebar konten */
 }
@@ -510,7 +510,7 @@ if st.sidebar.button("Run Training Model"):
 # =============================
 if section == "Informasi Data":
     st.subheader("Grafik Harga Saham")
-    fig, ax = plt.subplots(figsize=(5,2.5))
+    fig, ax = plt.subplots(figsize=(6,3))
     ax.plot(df["Date"], df["Close"])
     ax.set_title("Pergerakan Harga Saham")
     ax.set_xlabel("Date")
@@ -518,7 +518,10 @@ if section == "Informasi Data":
     show_plot(fig)
     
     st.subheader("Statistik Deskriptif")
-    st.write(df["Close"].describe())
+
+    left, center, right = st.columns([2,3,2])
+    with center:
+        st.dataframe(df["Close"].describe().to_frame())
         
 # =============================
 # SECTION 2 : TRAINING & EVALUASI
@@ -570,7 +573,7 @@ elif section == "Training & Evaluasi":
         # =====================================================
         st.subheader("Actual vs Predicted Comparison")
 
-        fig4, ax4 = plt.subplots(figsize=(5,2.5))
+        fig4, ax4 = plt.subplots(figsize=(6,3))
         ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
         ax4.plot(st.session_state.y_pred_base, label="Baseline")
         ax4.plot(st.session_state.y_pred_pso, label="PSO")
@@ -621,7 +624,7 @@ elif section == "Forecast":
         # ===============================
         # Grafik forecast
         # ===============================
-        fig, ax = plt.subplots(figsize=(5,2.5))
+        fig, ax = plt.subplots(figsize=(6,3))
         ax.plot(future_preds, label="Forecast")
         ax.legend()
         show_plot(fig)
@@ -640,6 +643,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
