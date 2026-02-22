@@ -26,7 +26,7 @@ st.markdown("""
 
 /* HILANGKAN PADDING ATAS BAWAH STREAMLIT */
 .block-container {
-    padding-top: 1rem;
+    padding-top: 1.5rem;
     padding-bottom: 0rem;
 }
 
@@ -44,7 +44,7 @@ section.main {
 
 /* KECILKAN FONT GLOBAL */
 html {
-    font-size: 14px;
+    font-size: 10px;
 }
 
 </style>
@@ -642,6 +642,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
