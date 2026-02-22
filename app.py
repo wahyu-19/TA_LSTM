@@ -484,7 +484,7 @@ if st.sidebar.button("Run Training Model"):
 # =============================
 if section == "Informasi Data":
     st.subheader("Grafik Harga Saham")
-    fig, ax = plt.subplots(figsize=(4,2))
+    fig, ax = plt.subplots(figsize=(2.5,1.2))
     ax.plot(df["Date"], df["Close"])
     ax.set_title("Pergerakan Harga Saham")
     ax.set_xlabel("Date")
@@ -510,11 +510,11 @@ elif section == "Training & Evaluasi":
         # =====================================================
         # VALIDATION LOSS (3 garis dalam 1 grafik)
         # =====================================================
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns([1,2,1])
 
         # BASELINE
         with col1:
-            fig1, ax1 = plt.subplots(figsize=(3,2))
+            fig1, ax1 = plt.subplots(figsize=(3,1.5))
             ax1.plot(history_base.history['loss'], label='Train')
             ax1.plot(history_base.history['val_loss'], label='Val')
             ax1.set_title('Baseline LSTM')
@@ -523,7 +523,7 @@ elif section == "Training & Evaluasi":
         
         # GA
         with col2:
-            fig2, ax2 = plt.subplots(figsize=(3,2))
+            fig2, ax2 = plt.subplots(figsize=(3,1.5))
             ax2.plot(history_ga.history['loss'], label='Train')
             ax2.plot(history_ga.history['val_loss'], label='Val')
             ax2.set_title('GA-LSTM')
@@ -532,7 +532,7 @@ elif section == "Training & Evaluasi":
     
         # PSO
         with col3:
-            fig3, ax3 = plt.subplots(figsize=(3,2))
+            fig3, ax3 = plt.subplots(figsize=(3,1.5))
             ax3.plot(history_pso.history['loss'], label='Train')
             ax3.plot(history_pso.history['val_loss'], label='Val')
             ax3.set_title('PSO-LSTM')
@@ -544,14 +544,14 @@ elif section == "Training & Evaluasi":
         # =====================================================
         st.subheader("Actual vs Predicted Comparison")
 
-        fig4, ax4 = plt.subplots(figsize=(4,2))
+        fig, ax = plt.subplots(figsize=(2.5,1.2))
         ax4.plot(st.session_state.y_true_base, label="Actual", linewidth=2)
         ax4.plot(st.session_state.y_pred_base, label="Baseline")
         ax4.plot(st.session_state.y_pred_pso, label="PSO")
         ax4.plot(st.session_state.y_pred_ga, label="GA")
         ax4.legend(fontsize=8)
         ax4.set_title("Actual vs Predicted", fontsize=10)
-        st.pyplot(fig4, use_container_width=True)
+        st.pyplot(fig4)
 
         
         # =====================================================
@@ -594,7 +594,7 @@ elif section == "Forecast":
         # ===============================
         # Grafik forecast
         # ===============================
-        fig, ax = plt.subplots(figsize=(4,2))
+        fig, ax = plt.subplots(figsize=(2.5,1.2))
         ax.plot(future_preds, label="Forecast")
         ax.legend()
         st.pyplot(fig)
@@ -613,6 +613,7 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
 
 
