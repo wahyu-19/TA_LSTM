@@ -1,4 +1,3 @@
-Udah bner
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -724,3 +723,4 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
