@@ -159,7 +159,7 @@ def train_baseline():
 
     history = model.fit(
         X_train, y_train,
-        epochs=50,
+        epochs=100,
         batch_size=64,
         validation_split=0.2,
         verbose=0
@@ -206,7 +206,7 @@ def train_ga():
             )
             model.fit(
                 X_tr, y_tr,
-                epochs=20,
+                epochs=10,
                 batch_size=batch,
                 verbose=0
             )
@@ -321,7 +321,7 @@ def train_ga():
     )
     history_ga = final_model_ga.fit(
         X_train, y_train,
-        epochs=50,
+        epochs=100,
         batch_size=best_batch_ga,
         validation_split=0.2,
         verbose=0
@@ -378,7 +378,7 @@ def train_pso():
                 lr = float(p[1])
                 batch = int(np.round(p[2]))
                 dropout = float(p[3])
-                epochs_fixed = 20
+                epochs_fixed = 10
 
                 try:
                     set_seed(42)
@@ -494,7 +494,7 @@ def train_pso():
 
     history_final = model_final.fit(
         X_train, y_train,
-        epochs=50,
+        epochs=100,
         batch_size=best_batch,
         validation_split=0.2,
         verbose=0
@@ -723,4 +723,5 @@ elif section == "Forecast":
         })
 
         st.dataframe(forecast_df)
+
 
